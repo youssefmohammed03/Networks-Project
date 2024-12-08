@@ -90,8 +90,7 @@ def client_ack_settings_frame(client_socket):
 
     print("ACK SETTINGS frame received from client. Connection setup complete.")
 
-def settings_frame_handler(client_socket, client_address):
-    frame_header = read_exact(client_socket, 9)
+def settings_frame_handler(client_socket, client_address, frame_header):
     frame_length, frame_type, frame_flags, stream_id = struct.unpack("!I B B I", b"\x00" + frame_header)
         
     if frame_type != SETTINGS_FRAME_TYPE:
@@ -130,7 +129,8 @@ def handle_client_connection(client_socket, client_address):
             return
         print("Valid HTTP/2 preface received.")
 
-        settings_frame_handler(client_socket, client_address)
+        frame_header = read_exact(client_socket, 9)
+        settings_frame_handler(client_socket, client_address, frame_header)
 
         #Transition to Frame Processor (not implemented yet)
         print("Handing over to Frame Processor...")
