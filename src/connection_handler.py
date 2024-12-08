@@ -18,6 +18,31 @@ def read_exact(sock, length):
         data += chunk
     return data
 
+def decode_settings_frame(payload):
+    i = 0
+    settings = {}
+    while i < len(payload):
+        # Unpack the 16-bit identifier and 32-bit value
+        setting_id, value = struct.unpack("!H I", payload[i:i + 6])
+        i += 6
+
+        # Map setting identifiers to human-readable names
+        setting_names = {
+            0x01: "SETTINGS_HEADER_TABLE_SIZE",
+            0x02: "SETTINGS_ENABLE_PUSH",
+            0x03: "SETTINGS_MAX_CONCURRENT_STREAMS",
+            0x04: "SETTINGS_INITIAL_WINDOW_SIZE",
+            0x05: "SETTINGS_MAX_FRAME_SIZE",
+        }
+        
+        setting_name = setting_names.get(setting_id, "Unknown")
+        settings[setting_name] = value
+
+        # Print each setting
+        print(f"Setting Identifier: {setting_id} ({setting_name}) = {value}")
+
+    return settings
+
 def send_settings_frame(client_socket, file_path="server_settings.json"):
     try:
         with open(file_path, "r") as file:
@@ -42,7 +67,7 @@ def send_settings_frame(client_socket, file_path="server_settings.json"):
     settings_frame = (struct.pack("!I", len(payload))[1:] + struct.pack("!B", 0x4) + struct.pack("!B", 0) + struct.pack("!I", 0) + payload)
 
     client_socket.sendall(settings_frame)
-    print("Sent settings frame:", server_settings)
+    print("Sent settings frame")
 
 def send_server_ack_settings_frame(client_socket):
     ack_settings_frame = (struct.pack("!I", 0)[1:] + struct.pack("!B", SETTINGS_FRAME_TYPE) + struct.pack("!B", SETTINGS_ACK_FLAG) + struct.pack("!I", 0))
@@ -61,7 +86,6 @@ def client_ack_settings_frame(client_socket):
         
     if ack_frame_type != SETTINGS_FRAME_TYPE or ack_frame_flags != SETTINGS_ACK_FLAG or ack_stream_id != 0:
         print("Invalid ACK SETTINGS frame received. Closing connection.")
-        client_socket.close()
         return
 
     print("ACK SETTINGS frame received from client. Connection setup complete.")
@@ -85,15 +109,15 @@ def settings_frame_handler(client_socket, client_address):
         print("Malformed settings frame payload. Closing connection.")
         client_socket.close()
         return
-    print("Initial settings frame received from client:", settings_payload)
+    print("Initial settings frame received from client:", decode_settings_frame(settings_payload))
     
     store_client_settings(frame_length, settings_payload, client_address)
 
-    send_server_ack_settings_frame(client_socket)
+    #send_server_ack_settings_frame(client_socket)
 
     send_settings_frame(client_socket)
 
-    client_ack_settings_frame(client_socket)
+    #client_ack_settings_frame(client_socket)
 
 def handle_client_connection(client_socket, client_address):
     try:
@@ -124,7 +148,7 @@ def handle_client_connection(client_socket, client_address):
 def handle_client_thread(client_socket, client_address):
     handle_client_connection(client_socket, client_address)
 
-def start_server(host="127.0.0.1", port=80):
+def start_server(host="192.168.1.7", port=80):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, port))
