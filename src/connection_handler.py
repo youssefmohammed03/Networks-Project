@@ -101,10 +101,20 @@ def handle_client_connection(client_socket, client_address):
 
         preface = read_exact(client_socket, len(HTTP2_PREFACE))
         if preface != HTTP2_PREFACE:
-            print("Invalid HTTP/2 preface received. Closing connection.")
-            client_socket.close()
-            return
-        print("Valid HTTP/2 preface received.")
+            initial_data = (preface + client_socket.recv(1024)).decode()
+            if "Upgrade: h2c" in initial_data or "Connection: Upgrade" in initial_data or "HTTP/1.1" in initial_data:
+                response = (
+                    "HTTP/1.1 101 Switching Protocols\r\n"
+                    "Connection: Upgrade\r\n"
+                    "Upgrade: h2c\r\n"
+                    "\r\n"
+                )
+                client_socket.sendall(response.encode())
+                print("HTTP/1.1 upgrade to HTTP/2 accepted.")
+            else:
+                print("Invalid request. Closing connection2.")
+                client_socket.close()
+                return
 
         settings_frame_handler(client_socket, client_address)
 
