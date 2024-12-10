@@ -1,4 +1,5 @@
 # ----------------------------------------- Static Table -------------------------------------------------#
+
 static_table = [
     ("", ""),                          # Index 0
     (":authority", ""),                # Index 1
@@ -66,8 +67,9 @@ static_table = [
 # ----------------------------------------- End of Static Table -------------------------------------------------#
 
 # ------------------------------------ Dynamic Table Implementation ---------------------------------------------#
+
 class DynamicTable:
-    def __init__(self, max_size=100):
+    def __init__(self, max_size=4096):
         self.table = []
         self.current_size = 0
         self.max_size = max_size
@@ -105,5 +107,167 @@ class DynamicTable:
     
     def get_table(self):
         return self.table
+    
+    def update_max_size(self, new_max_size):
+        self.max_size = new_max_size
 
 # ------------------------------------ End of Dynamic Table Implementation --------------------------------------#
+
+#-----------------------------------------------Ecoding Functions------------------------------------------------#
+
+def encode_integer(value, prefix_bits):
+    max_prefix_value = (1 << prefix_bits) - 1
+    if value < max_prefix_value:
+        return bytes([value])
+    else:
+        result = [max_prefix_value]
+        value -= max_prefix_value
+        while value >= 128:
+            result.append((value % 128) + 128)
+            value //= 128
+        result.append(value)
+        return bytes(result)
+    
+def print_bytes_in_binary(byte_data):
+    binary_strings = [bin(byte)[2:].zfill(8) for byte in byte_data]
+    print(" ".join(binary_strings))
+
+def encode_string(string, huffman=False):
+    """
+    Encodes a string with optional Huffman encoding.
+    """
+    encoded = string.encode("utf-8")
+    huffman_flag = 0x80 if huffman else 0x00
+    length_encoded = encode_integer(len(encoded), 7)
+    return bytes([length_encoded[0] | huffman_flag]) + length_encoded[1:] + encoded
+
+def encode_header(dynamic_table, name, value, indexing = True):
+    for i, (n, v) in enumerate(static_table):
+        if n == name and v == value:
+            encoded_byte = encode_integer(i, 7)
+            return bytes([encoded_byte[0] | 0x80]) + encoded_byte[1:]
+
+    for i, (n, v) in enumerate(dynamic_table.get_table()):
+        if n == name and v == value:
+            encoded_byte = encode_integer(i + 62, 7)
+            return bytes([encoded_byte[0] | 0x80]) + encoded_byte[1:]
+
+    for i, (n, v) in enumerate(static_table):
+        if n == name:
+            if indexing:
+                encoded_byte = encode_integer(i, 6)
+                encoded_name_index = bytes([encoded_byte[0] | 0x40]) + encoded_byte[1:]
+                encoded_value = encode_string(value)
+                dynamic_table.add_entry(name, value)
+                return encoded_name_index + encoded_value
+            else:
+                encoded_name_index = encode_integer(i, 4)
+                encoded_value = encode_string(value)
+                return encoded_name_index + encoded_value
+
+    for i, (n, v) in enumerate(dynamic_table.get_table()):
+        if n == name:
+            if indexing:
+                encoded_byte = encode_integer(i + 62, 6)
+                encoded_name_index = bytes([encoded_byte[0] | 0x40]) + encoded_byte[1:]
+                encoded_value = encode_string(value)
+                dynamic_table.add_entry(name, value)
+                return encoded_name_index + encoded_value
+            else:
+                encoded_name_index = encode_integer(i + 62, 4)
+                encoded_value = encode_string(value)
+                return encoded_name_index + encoded_value
+
+    encoded_name = encode_string(name)
+    encoded_value = encode_string(value)
+    if indexing:
+        dynamic_table.add_entry(name, value)
+        encoded_byte = encode_integer(0, 6)
+        flag = bytes([encoded_byte[0] | 0x40]) + encoded_byte[1:]
+        return flag + encoded_name + encoded_value
+    else:
+        flag = encode_integer(0, 4)
+        return flag + encoded_name + encoded_value
+
+#-------------------------------------------End of Encoding Functions--------------------------------------------#
+
+#-----------------------------------------------Decoding Functions-----------------------------------------------#
+
+def decode_integer(data, prefix_bits):
+    """
+    Decodes an integer from the HPACK variable-length encoding.
+    """
+    mask = (1 << prefix_bits) - 1
+    value = data[0] & mask
+    if value < mask:
+        return value, 1
+    value = mask
+    shift = 0
+    i = 1
+    while data[i] & 0x80:
+        value += (data[i] & 0x7F) << shift
+        shift += 7
+        i += 1
+    value += data[i] << shift
+    return value, i + 1
+
+
+
+def decode_string(data):
+    """
+    Decodes a string from HPACK format.
+    """
+    huffman = data[0] & 0x80
+    length, consumed = decode_integer(data, 7)
+    string = data[consumed:consumed + length].decode("utf-8")
+    return string, consumed + length
+
+def decode_headers(dynamic_table, data):
+    headers = []
+    i = 0
+    while i < len(data):
+        if data[i] & 0x80:
+            index, consumed = decode_integer(data[i:], 7)
+            i += consumed
+            if index == 0:
+                raise ValueError("Invalid index")
+            elif index <= 61:
+                headers.append(static_table[index])
+            else:
+                headers.append(dynamic_table.get_entry(index))
+        else:
+            name, consumed = decode_string(data[i:])
+            i += consumed
+            value, consumed = decode_string(data[i:])
+            i += consumed
+            headers.append((name, value))
+            dynamic_table.add_entry(name, value)
+    return headers
+
+#-------------------------------------------End of Decoding Functions--------------------------------------------#
+
+#-----------------------------------------------Testing Functions------------------------------------------------#
+
+dt_for_server = DynamicTable()
+dt_for_client = DynamicTable()
+from_client_to_server = [
+    (":method", "GET"),
+    (":scheme", "https"),
+    (":path", "/"),
+    (":authority", "www.example.com"),
+    ("name1", "value1"),
+    ("name2", "value2"),
+    ("name3", "value3")
+]
+
+def from_bytes_to_string(byte_data):
+    return "".join([chr(byte) for byte in byte_data])
+
+encoded_headers = b""
+for name, value in from_client_to_server:
+    encoded_headers += encode_header(dt_for_client, name, value)
+
+print("Encoded headers:", encoded_headers)
+print(dt_for_client.get_table())
+
+#--------------------------------------------End of Testing Functions--------------------------------------------#
