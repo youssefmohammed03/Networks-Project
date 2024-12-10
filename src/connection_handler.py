@@ -118,11 +118,16 @@ def settings_frame_handler(client_socket, client_address, frame_header):
 
     #client_ack_settings_frame(client_socket)
 
+def print_bytes_in_binary(byte_data):
+    binary_strings = [bin(byte)[2:].zfill(8) for byte in byte_data]
+    print(" ".join(binary_strings))
+
 def handle_client_connection(client_socket, client_address):
     try:
         client_settings[client_address] = {}
 
         preface = read_exact(client_socket, len(HTTP2_PREFACE))
+        print_bytes_in_binary(preface)
         if preface != HTTP2_PREFACE:
             print("Invalid HTTP/2 preface received. Closing connection.")
             client_socket.close()
@@ -148,7 +153,7 @@ def handle_client_connection(client_socket, client_address):
 def handle_client_thread(client_socket, client_address):
     handle_client_connection(client_socket, client_address)
 
-def start_server(host="192.168.1.7", port=80):
+def start_server(host="192.168.1.12", port=80):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, port))

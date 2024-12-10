@@ -11,7 +11,7 @@ def frame_processor(client_socket, client_address):
             stream_id &= 0x7FFFFFFF
 
             if frame_type == 0x0:  # DATA frame
-                s#tream_manager(frame_flags, stream_id)
+                #tream_manager(frame_flags, stream_id)
                 pass
             elif frame_type == 0x1:  # HEADERS frame
                 #HPACK(frame_flags, stream_id)
