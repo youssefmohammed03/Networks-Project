@@ -9,6 +9,7 @@ SETTINGS_FRAME_TYPE = 0x4
 SETTINGS_ACK_FLAG = 0x1
 
 client_settings = {}
+client_dynamic_table = {}
 
 def read_exact(sock, length):
     data = b""
@@ -126,7 +127,6 @@ def handle_client_connection(client_socket, client_address):
         client_settings[client_address] = {}
 
         preface = read_exact(client_socket, len(HTTP2_PREFACE))
-        print_bytes_in_binary(preface)
         if preface != HTTP2_PREFACE:
             print("Invalid HTTP/2 preface received. Closing connection.")
             client_socket.close()
@@ -146,6 +146,7 @@ def handle_client_connection(client_socket, client_address):
     finally:
         if client_address in client_settings:
             del client_settings[client_address]
+            del client_dynamic_table[client_address]
         client_socket.close()
         print(f"Connection with {client_address} closed and its settings deleted.")
 
