@@ -2,6 +2,7 @@ import socket
 import struct
 import threading
 import json
+import frame_processor as fm
 
 HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 SETTINGS_FRAME_TYPE = 0x4
@@ -22,11 +23,9 @@ def decode_settings_frame(payload):
     i = 0
     settings = {}
     while i < len(payload):
-        # Unpack the 16-bit identifier and 32-bit value
         setting_id, value = struct.unpack("!H I", payload[i:i + 6])
         i += 6
 
-        # Map setting identifiers to human-readable names
         setting_names = {
             0x01: "SETTINGS_HEADER_TABLE_SIZE",
             0x02: "SETTINGS_ENABLE_PUSH",
@@ -38,7 +37,6 @@ def decode_settings_frame(payload):
         setting_name = setting_names.get(setting_id, "Unknown")
         settings[setting_name] = value
 
-        # Print each setting
         print(f"Setting Identifier: {setting_id} ({setting_name}) = {value}")
 
     return settings
@@ -67,18 +65,18 @@ def send_settings_frame(client_socket, file_path="server_settings.json"):
     settings_frame = (struct.pack("!I", len(payload))[1:] + struct.pack("!B", 0x4) + struct.pack("!B", 0) + struct.pack("!I", 0) + payload)
 
     client_socket.sendall(settings_frame)
-    print("Sent settings frame")
+    print("SETTINGS FRAME sent to client.")
 
 def send_server_ack_settings_frame(client_socket):
     ack_settings_frame = (struct.pack("!I", 0)[1:] + struct.pack("!B", SETTINGS_FRAME_TYPE) + struct.pack("!B", SETTINGS_ACK_FLAG) + struct.pack("!I", 0))
     client_socket.sendall(ack_settings_frame)
-    print("ACK settings frame sent to client.")
+    print("ACK SETTINGS FRAME sent to client.")
 
 def store_client_settings(frame_length, settings_payload, client_address):
     for i in range(0, frame_length, 6):
         key, value = struct.unpack("!H I", settings_payload[i:i + 6])
         client_settings[client_address][key] = value 
-    print(f"Stored settings for client {client_address}: {client_settings[client_address]}")
+    print(f"Stored settings for client.")
 
 def client_ack_settings_frame(client_socket):
     ack_frame_header = read_exact(client_socket, 9)
@@ -88,7 +86,7 @@ def client_ack_settings_frame(client_socket):
         print("Invalid ACK SETTINGS frame received. Closing connection.")
         return
 
-    print("ACK SETTINGS frame received from client. Connection setup complete.")
+    print("ACK SETTINGS FRAME received from client.")
 
 def settings_frame_handler(client_socket, client_address, frame_header):
     frame_length, frame_type, frame_flags, stream_id = struct.unpack("!I B B I", b"\x00" + frame_header)
@@ -108,7 +106,8 @@ def settings_frame_handler(client_socket, client_address, frame_header):
         print("Malformed settings frame payload. Closing connection.")
         client_socket.close()
         return
-    print("Initial settings frame received from client:", decode_settings_frame(settings_payload))
+    print("SETTINGS FRAME received from client.")
+    decode_settings_frame(settings_payload)
     
     store_client_settings(frame_length, settings_payload, client_address)
 
@@ -116,7 +115,7 @@ def settings_frame_handler(client_socket, client_address, frame_header):
 
     send_settings_frame(client_socket)
 
-    #client_ack_settings_frame(client_socket)
+    client_ack_settings_frame(client_socket)
 
 def print_bytes_in_binary(byte_data):
     binary_strings = [bin(byte)[2:].zfill(8) for byte in byte_data]
@@ -132,14 +131,14 @@ def handle_client_connection(client_socket, client_address):
             print("Invalid HTTP/2 preface received. Closing connection.")
             client_socket.close()
             return
-        print("Valid HTTP/2 preface received.")
+        print("PREFACE received from the client.")
 
         frame_header = read_exact(client_socket, 9)
         settings_frame_handler(client_socket, client_address, frame_header)
 
-        #Transition to Frame Processor (not implemented yet)
-        print("Handing over to Frame Processor...")
-        # frame_processor(client_socket)
+        
+        print("Handing over to Frame Processor")
+        fm.frame_processor(client_socket, client_address)
 
     except Exception as e:
         print(f"Error: {e}")

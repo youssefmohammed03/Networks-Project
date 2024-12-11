@@ -115,6 +115,15 @@ class DynamicTable:
 
 #-----------------------------------------------Ecoding Functions------------------------------------------------#
 
+def print_bytes_in_binary(byte_data):
+    binary_strings = [bin(byte)[2:].zfill(8) for byte in byte_data]
+    print(" ".join(binary_strings))
+
+#make it return raw bytes b''
+def print_binary_in_bytes(binary_string):
+    byte_data = [int(binary_string[i:i+8], 2) for i in range(0, len(binary_string), 9)]
+    print(byte_data)
+
 def encode_integer(value, prefix_bits):
     max_prefix_value = (1 << prefix_bits) - 1
     if value < max_prefix_value:
@@ -128,9 +137,6 @@ def encode_integer(value, prefix_bits):
         result.append(value)
         return bytes(result)
     
-def print_bytes_in_binary(byte_data):
-    binary_strings = [bin(byte)[2:].zfill(8) for byte in byte_data]
-    print(" ".join(binary_strings))
 
 def encode_string(string, huffman=False):
     """
@@ -141,7 +147,7 @@ def encode_string(string, huffman=False):
     length_encoded = encode_integer(len(encoded), 7)
     return bytes([length_encoded[0] | huffman_flag]) + length_encoded[1:] + encoded
 
-def encode_header(dynamic_table, name, value, indexing = True):
+def encode(dynamic_table, name, value, indexing = True):
     for i, (n, v) in enumerate(static_table):
         if n == name and v == value:
             encoded_byte = encode_integer(i, 7)
@@ -197,20 +203,23 @@ def decode_integer(data, prefix_bits):
     """
     Decodes an integer from the HPACK variable-length encoding.
     """
-    mask = (1 << prefix_bits) - 1
-    value = data[0] & mask
-    if value < mask:
+    mask = (1 << prefix_bits) - 1 
+    value = data[0] & mask  
+    if value < mask:  
         return value, 1
+
     value = mask
     shift = 0
     i = 1
-    while data[i] & 0x80:
-        value += (data[i] & 0x7F) << shift
+    while True:
+        B = data[i] 
+        value += (B & 0x7F) << shift  
         shift += 7
+        if not (B & 0x80):
+            break
         i += 1
-    value += data[i] << shift
-    return value, i + 1
 
+    return value, i + 1
 
 
 def decode_string(data):
@@ -222,7 +231,7 @@ def decode_string(data):
     string = data[consumed:consumed + length].decode("utf-8")
     return string, consumed + length
 
-def decode_headers(dynamic_table, data):
+def decode(dynamic_table, data):
     headers = []
     i = 0
     while i < len(data):
@@ -260,14 +269,14 @@ from_client_to_server = [
     ("name3", "value3")
 ]
 
-def from_bytes_to_string(byte_data):
-    return "".join([chr(byte) for byte in byte_data])
-
 encoded_headers = b""
 for name, value in from_client_to_server:
-    encoded_headers += encode_header(dt_for_client, name, value)
+    encoded_headers += encode(dt_for_client, name, value)
 
-print("Encoded headers:", encoded_headers)
-print(dt_for_client.get_table())
+print("Encoded Headers from Client to Server:")
+print(encoded_headers)
+
+b'\x41\x0fwww.example.com'
+print(decode(b'\x0fwww.example.com'))
 
 #--------------------------------------------End of Testing Functions--------------------------------------------#

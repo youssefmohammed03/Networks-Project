@@ -1,107 +1,60 @@
+import h2.connection
+import h2.events
 import socket
-import struct
 
-# HTTP/2 Constants
-HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-SETTINGS_FRAME_TYPE = 0x4
-SETTINGS_ACK_FLAG = 0x1
 
-def build_settings_frame():
+def test_http2_server(host="192.168.1.12", port=80):
     """
-    Build an initial SETTINGS frame to send to the server.
+    Test HTTP/2 server starting with the preface, sending a request, and receiving a HEADER frame.
     """
-    # Example settings payload: SETTINGS_HEADER_TABLE_SIZE = 4096
-    settings_payload = struct.pack("!H I", 0x1, 4096)  # Identifier 0x1, Value 4096
-    frame_length = len(settings_payload)
+    # Create a socket and connect to the server
+    sock = socket.create_connection((host, port))
+    conn = h2.connection.H2Connection()
 
-    settings_frame = (
-        struct.pack("!I", frame_length)[1:]  # 3-byte length
-        + struct.pack("!B", SETTINGS_FRAME_TYPE)  # Frame type: SETTINGS
-        + struct.pack("!B", 0)  # No flags
-        + struct.pack("!I", 0)  # Stream ID: 0
-        + settings_payload  # Payload
+    # Step 1: Send the HTTP/2 preface and initial SETTINGS frame
+    conn.initiate_connection()
+    sock.sendall(conn.data_to_send())
+    print("Sent HTTP/2 connection preface and initial SETTINGS frame.")
+
+    # Step 2: Wait for server's response and process SETTINGS frame
+    response_data = sock.recv(4096)
+    conn.receive_data(response_data)
+
+    # Step 3: Open a new stream and send a request
+    stream_id = conn.get_next_available_stream_id()
+    conn.send_headers(
+        stream_id=stream_id,
+        headers=[
+            (":method", "GET"),
+            (":path", "/"),
+            (":scheme", "http"),
+            (":authority", host),
+        ],
+        end_stream=True,  # Indicate that there is no body
     )
-    return settings_frame
+    sock.sendall(conn.data_to_send())
+    print(f"Sent HEADERS frame for stream {stream_id}.")
 
-def parse_frame_header(frame_header):
-    """
-    Parse an HTTP/2 frame header.
-    """
-    frame_length, frame_type, frame_flags, stream_id = struct.unpack("!I B B I", b"\x00" + frame_header)
-    frame_length = frame_length & 0x00FFFFFF  # Mask out the extra byte from the 24-bit length
-    stream_id = stream_id & 0x7FFFFFFF  # Clear the reserved bit
-    return frame_length, frame_type, frame_flags, stream_id
+    # Step 4: Wait for server's response and process HEADER frame
+    response_data = sock.recv(4096)
+    conn.receive_data(response_data)
 
-def send_ack_settings_frame(sock):
-    """
-    Sends an ACK SETTINGS frame to acknowledge the server's SETTINGS frame.
-    """
-    ack_frame = (
-        struct.pack("!I", 0)[1:]  # Frame length: 0 (empty payload)
-        + struct.pack("!B", SETTINGS_FRAME_TYPE)  # Frame type: SETTINGS
-        + struct.pack("!B", SETTINGS_ACK_FLAG)  # Flags: ACK
-        + struct.pack("!I", 0)  # Stream ID: 0
-    )
-    sock.sendall(ack_frame)
-    print("Sent ACK SETTINGS frame to server.")
+    for event in conn.events:
+        if isinstance(event, h2.events.ResponseReceived):
+            print(f"Received HEADER frame on stream {event.stream_id}:")
+            for header in event.headers:
+                print(f"  {header[0]}: {header[1]}")
+        elif isinstance(event, h2.events.DataReceived):
+            print(f"Received DATA frame on stream {event.stream_id}: {event.data.decode('utf-8')}")
+        elif isinstance(event, h2.events.StreamEnded):
+            print(f"Stream {event.stream_id} ended.")
+        else:
+            print(f"Unhandled event: {event}")
 
+    # Step 5: Close the connection
+    sock.close()
+    print("Closed connection to the server.")
 
-def testing_client(server_host="127.0.0.1", server_port=80):
-    """
-    Connect to the server and perform the following:
-    - Establish a TCP connection (3-way handshake).
-    - Send the HTTP/2 connection preface.
-    - Send an initial SETTINGS frame.
-    - Validate the ACK SETTINGS frame.
-    - Validate the server's SETTINGS frame.
-    """
-    print("Starting testing client...")
-    try:
-        # Step 1: Establish a TCP connection
-        sock = socket.create_connection((server_host, server_port))
-        print(f"Connected to server at {server_host}:{server_port}")
-
-        # Step 2: Send the HTTP/2 connection preface
-        sock.sendall(HTTP2_PREFACE)
-        print("Sent HTTP/2 preface.")
-
-        # Step 3: Send the initial SETTINGS frame
-        settings_frame = build_settings_frame()
-        sock.sendall(settings_frame)
-        print("Sent initial SETTINGS frame.")
-
-        # Step 4: Wait for and validate the ACK SETTINGS frame
-        frame_header = sock.recv(9)
-        frame_length, frame_type, frame_flags, stream_id = parse_frame_header(frame_header)
-
-        if frame_type != SETTINGS_FRAME_TYPE or frame_flags != SETTINGS_ACK_FLAG or stream_id != 0:
-            raise ValueError("Invalid ACK SETTINGS frame received.")
-        print("ACK SETTINGS frame received and validated.")
-
-        # Step 5: Wait for and validate the server's SETTINGS frame
-        frame_header = sock.recv(9)
-        frame_length, frame_type, frame_flags, stream_id = parse_frame_header(frame_header)
-
-        if frame_type != SETTINGS_FRAME_TYPE or frame_flags != 0 or stream_id != 0:
-            raise ValueError("Invalid server SETTINGS frame received.")
-        settings_payload = sock.recv(frame_length)
-        print(f"Server SETTINGS frame received with payload: {settings_payload}")
-
-        # Parse the server's SETTINGS frame payload (key-value pairs)
-        for i in range(0, frame_length, 6):
-            key, value = struct.unpack("!H I", settings_payload[i:i + 6])
-            print(f"Server setting: ID={key}, Value={value}")
-
-        # Send ACK for the server's SETTINGS frame
-        send_ack_settings_frame(sock)
-
-        print("Testing client completed successfully!")
-
-    except Exception as e:
-        print(f"Error during testing: {e}")
-    finally:
-        sock.close()
-        print("Connection closed.")
 
 if __name__ == "__main__":
-    testing_client()
+    test_http2_server("192.168.1.12", 80)

@@ -1,6 +1,7 @@
 import socket
 import struct
 from connection_handler import *
+import HPACK as hpack
 
 def frame_processor(client_socket, client_address):
     try:
@@ -11,11 +12,12 @@ def frame_processor(client_socket, client_address):
             stream_id &= 0x7FFFFFFF
 
             if frame_type == 0x0:  # DATA frame
-                #tream_manager(frame_flags, stream_id)
+                #stream_manager(frame_flags, stream_id)
                 pass
             elif frame_type == 0x1:  # HEADERS frame
-                #HPACK(frame_flags, stream_id)
-                pass
+                header_frame_payload = read_exact(client_socket, frame_length)
+                #header = hpack.decode(header_frame_payload)
+                print(header_frame_payload)
             elif frame_type == 0x4:  # SETTINGS frame
                 settings_frame_handler(frame_flags, stream_id, client_address)
             elif frame_type == 0x8:  # WINDOW_UPDATE frame
