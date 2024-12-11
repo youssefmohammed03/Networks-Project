@@ -235,22 +235,88 @@ def decode(dynamic_table, data):
     headers = []
     i = 0
     while i < len(data):
-        if data[i] & 0x80:
+        byte = data[i]
+        if byte & 0x80: # Index Representation
             index, consumed = decode_integer(data[i:], 7)
             i += consumed
-            if index == 0:
-                raise ValueError("Invalid index")
-            elif index <= 61:
-                headers.append(static_table[index])
+            if index < 62:
+                name, value = static_table[index]
             else:
-                headers.append(dynamic_table.get_entry(index))
-        else:
-            name, consumed = decode_string(data[i:])
-            i += consumed
-            value, consumed = decode_string(data[i:])
-            i += consumed
+                name, value = dynamic_table.get_entry(index)
             headers.append((name, value))
-            dynamic_table.add_entry(name, value)
+
+        elif byte & 0x40:
+            index, consumed = decode_integer(data[i:], 6)
+            if index == 0: # New Name Incremental Indexing
+                i += consumed
+                name, consumed = decode_string(data[i:])
+                i += consumed
+                value, consumed = decode_string(data[i:])
+                i += consumed
+                dynamic_table.add_entry(name, value)
+                headers.append((name, value))
+            elif index: # Indexed Name Incremental Indexing
+                i += consumed
+                if index < 62:
+                    name, _ = static_table[index]
+                else:
+                    name, _ = dynamic_table.get_entry(index)
+                value, consumed = decode_string(data[i:])
+                i += consumed
+                dynamic_table.add_entry(name, value)
+                headers.append((name, value))
+            else:
+                return headers
+
+        elif byte & 0x00:
+            index, consumed = decode_integer(data[i:], 4)
+            if index == 0: #New Name without Incremental Indexing
+                i += consumed
+                name, consumed = decode_string(data[i:])
+                i += consumed
+                value, consumed = decode_string(data[i:])
+                i += consumed
+                headers.append((name, value))
+            elif index: #Indexed Name without Incremental Indexing
+                i += consumed
+                if index < 62:
+                    name, _ = static_table[index]
+                else:
+                    name, _ = dynamic_table.get_entry(index)
+                value, consumed = decode_string(data[i:])
+                i += consumed
+                headers.append((name, value))
+            else:
+                return headers
+
+        elif byte & 0x10:
+            index, consumed = decode_integer(data[i:], 4)
+            if index == 0: #New Name Never Incremental Indexing
+                i += consumed
+                name, consumed = decode_string(data[i:])
+                i += consumed
+                value, consumed = decode_string(data[i:])
+                i += consumed
+                headers.append((name, value))
+            elif index: #Indexed Name Never Incremental Indexing
+                i += consumed
+                if index < 62:
+                    name, _ = static_table[index]
+                else:
+                    name, _ = dynamic_table.get_entry(index)
+                value, consumed = decode_string(data[i:])
+                i += consumed
+                headers.append((name, value))
+            else:
+                return headers
+        elif byte & 0x20: #Update Dynamic Table Max Size
+            index, consumed = decode_integer(data[i:], 5)
+            i += consumed
+            dynamic_table.update_max_size(index)
+
+        else:
+            return headers
+
     return headers
 
 #-------------------------------------------End of Decoding Functions--------------------------------------------#
@@ -273,10 +339,10 @@ encoded_headers = b""
 for name, value in from_client_to_server:
     encoded_headers += encode(dt_for_client, name, value)
 
-print("Encoded Headers from Client to Server:")
-print(encoded_headers)
+print("Encoded Headers", encoded_headers)
+print("Decoded Headers:", decode(dt_for_server, encoded_headers))
+print("Dynamic Table for Client:", dt_for_client.get_table())
+print("Dynamic Table for Server:", dt_for_server.get_table())
 
-b'\x41\x0fwww.example.com'
-print(decode(b'\x0fwww.example.com'))
 
 #--------------------------------------------End of Testing Functions--------------------------------------------#
