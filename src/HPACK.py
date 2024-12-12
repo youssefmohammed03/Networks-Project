@@ -1,3 +1,5 @@
+import huffman_table as ht
+
 # ----------------------------------------- Static Table -------------------------------------------------#
 
 static_table = [
@@ -227,6 +229,10 @@ def decode_string(data):
     Decodes a string from HPACK format.
     """
     huffman = data[0] & 0x80
+    if huffman:
+        length, consumed = decode_integer(data, 7)
+        string = ht.decode_huffman(data[consumed:consumed + length])
+        return string, consumed + length
     length, consumed = decode_integer(data, 7)
     string = data[consumed:consumed + length].decode("utf-8")
     return string, consumed + length
@@ -320,29 +326,3 @@ def decode(dynamic_table, data):
     return headers
 
 #-------------------------------------------End of Decoding Functions--------------------------------------------#
-
-#-----------------------------------------------Testing Functions------------------------------------------------#
-
-dt_for_server = DynamicTable()
-dt_for_client = DynamicTable()
-from_client_to_server = [
-    (":method", "GET"),
-    (":scheme", "https"),
-    (":path", "/"),
-    (":authority", "www.example.com"),
-    ("name1", "value1"),
-    ("name2", "value2"),
-    ("name3", "value3")
-]
-
-encoded_headers = b""
-for name, value in from_client_to_server:
-    encoded_headers += encode(dt_for_client, name, value)
-
-print("Encoded Headers", encoded_headers)
-print("Decoded Headers:", decode(dt_for_server, encoded_headers))
-print("Dynamic Table for Client:", dt_for_client.get_table())
-print("Dynamic Table for Server:", dt_for_server.get_table())
-
-
-#--------------------------------------------End of Testing Functions--------------------------------------------#

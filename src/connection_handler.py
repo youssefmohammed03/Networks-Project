@@ -3,13 +3,11 @@ import struct
 import threading
 import json
 import frame_processor as fm
+from Database import *
 
 HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 SETTINGS_FRAME_TYPE = 0x4
 SETTINGS_ACK_FLAG = 0x1
-
-client_settings = {}
-client_dynamic_table = {}
 
 def read_exact(sock, length):
     data = b""
@@ -163,7 +161,9 @@ def start_server(host="192.168.1.12", port=80):
     try:
         while True:
             client_socket, client_address = server_socket.accept()
+            client_address = client_address[0]
             print(f"Accepted connection from {client_address}")
+            client_dynamic_table[client_address] = {}
             client_thread = threading.Thread(target=handle_client_thread, args=(client_socket, client_address))
             client_thread.start()
     except KeyboardInterrupt:

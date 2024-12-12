@@ -2,6 +2,7 @@ import socket
 import struct
 from connection_handler import *
 import HPACK as hpack
+from Database import *
 
 def frame_processor(client_socket, client_address):
     try:
@@ -16,11 +17,10 @@ def frame_processor(client_socket, client_address):
                 pass
             elif frame_type == 0x1:  # HEADERS frame
                 header_frame_payload = read_exact(client_socket, frame_length)
-                client_dynamic_table[client_address] = {}
-                print(header_frame_payload)
+                client_dynamic_table[client_address] = hpack.DynamicTable()
                 headers = hpack.decode(client_dynamic_table[client_address], header_frame_payload)
                 print(headers)
-                print(client_dynamic_table[client_address])
+                print(client_dynamic_table[client_address].get_table())
             elif frame_type == 0x4:  # SETTINGS frame
                 settings_frame_handler(frame_flags, stream_id, client_address)
             elif frame_type == 0x8:  # WINDOW_UPDATE frame
