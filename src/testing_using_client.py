@@ -3,7 +3,7 @@ import h2.events
 import socket
 
 
-def test_http2_server(host="192.168.1.12", port=80):
+def test_http2_server(host="192.168.1.10", port=80):
     """
     Test HTTP/2 server starting with the preface, sending a request, and receiving a HEADER frame.
     """

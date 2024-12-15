@@ -144,6 +144,7 @@ def handle_client_connection(client_socket, client_address):
     finally:
         if client_address in client_settings:
             del client_settings[client_address]
+        if client_address in client_dynamic_table:
             del client_dynamic_table[client_address]
         client_socket.close()
         print(f"Connection with {client_address} closed and its settings deleted.")
@@ -151,7 +152,7 @@ def handle_client_connection(client_socket, client_address):
 def handle_client_thread(client_socket, client_address):
     handle_client_connection(client_socket, client_address)
 
-def start_server(host="192.168.1.12", port=80):
+def start_server(host="192.168.1.10", port=80):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, port))
