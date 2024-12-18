@@ -4,6 +4,7 @@ import threading
 import json
 import frame_processor as fm
 from Database import *
+import frames
 
 HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 SETTINGS_FRAME_TYPE = 0x4
@@ -77,44 +78,24 @@ def store_client_settings(frame_length, settings_payload, client_address):
         client_settings[client_address][key] = value 
     print(f"Stored settings for client.")
 
-def client_ack_settings_frame(client_socket):
-    ack_frame_header = read_exact(client_socket, 9)
-    ack_frame_length, ack_frame_type, ack_frame_flags, ack_stream_id = struct.unpack("!I B B I", b"\x00" + ack_frame_header)
-        
-    if ack_frame_type != SETTINGS_FRAME_TYPE or ack_frame_flags != SETTINGS_ACK_FLAG or ack_stream_id != 0:
-        print("Invalid ACK SETTINGS frame received. Closing connection.")
-        return
-
-    print("ACK SETTINGS FRAME received from client.")
-
-def settings_frame_handler(client_socket, client_address, frame_header):
-    frame_length, frame_type, frame_flags, stream_id = struct.unpack("!I B B I", b"\x00" + frame_header)
-        
-    if frame_type != SETTINGS_FRAME_TYPE:
-        print("Invalid frame type received instead of settings. Closing connection.")
-        client_socket.close()
-        return
-        
-    if stream_id != 0:
+def settings_frame_handler(client_socket, client_address, frame):
+    if frame.get_stream_id() != 0:
         print("Invalid stream ID in settings frame. Closing connection.")
-        client_socket.close()
         return
-
-    settings_payload = read_exact(client_socket, frame_length)
-    if frame_length % 6 != 0:
-        print("Malformed settings frame payload. Closing connection.")
-        client_socket.close()
-        return
-    print("SETTINGS FRAME received from client.")
-    decode_settings_frame(settings_payload)
     
-    store_client_settings(frame_length, settings_payload, client_address)
+    if frame.get_frame_flags() == SETTINGS_ACK_FLAG:
+        print("ACK SETTINGS FRAME received from client.")
+        return
 
-    #send_server_ack_settings_frame(client_socket)
+    decode_settings_frame(frame.get_payload())
+    
+    store_client_settings(frame.get_frame_length(), frame.get_payload(), client_address)
+
+    print("Settings Frame received from client and stored.")
 
     send_settings_frame(client_socket)
-
-    client_ack_settings_frame(client_socket)
+    
+    send_server_ack_settings_frame(client_socket)
 
 def print_bytes_in_binary(byte_data):
     binary_strings = [bin(byte)[2:].zfill(8) for byte in byte_data]
@@ -131,10 +112,11 @@ def handle_client_connection(client_socket, client_address):
             return
         print("PREFACE received from the client.")
 
-        frame_header = read_exact(client_socket, 9)
-        settings_frame_handler(client_socket, client_address, frame_header)
+        frame = frames.Frame(read_exact(client_socket, 9))  
+        if (frame.get_frame_type() == SETTINGS_FRAME_TYPE):
+            frame.set_payload(read_exact(client_socket, frame.get_frame_length()))
+            settings_frame_handler(client_socket, client_address, frame)
 
-        
         print("Handing over to Frame Processor")
         fm.frame_processor(client_socket, client_address)
 
