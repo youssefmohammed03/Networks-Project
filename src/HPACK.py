@@ -238,91 +238,91 @@ def decode_string(data):
     return string, consumed + length
 
 def decode(dynamic_table, data):
-    headers = []
-    i = 0
-    while i < len(data):
-        byte = data[i]
-        if byte & 0x80: # Index Representation
-            index, consumed = decode_integer(data[i:], 7)
-            i += consumed
-            if index < 62:
-                name, value = static_table[index]
-            else:
-                name, value = dynamic_table.get_entry(index)
-            headers.append((name, value))
-
-        elif byte & 0x40:
-            index, consumed = decode_integer(data[i:], 6)
-            if index == 0: # New Name Incremental Indexing
-                i += consumed
-                name, consumed = decode_string(data[i:])
-                i += consumed
-                value, consumed = decode_string(data[i:])
-                i += consumed
-                dynamic_table.add_entry(name, value)
-                headers.append((name, value))
-            elif index: # Indexed Name Incremental Indexing
+    try:
+        headers = []
+        i = 0
+        while i < len(data):
+            byte = data[i]
+            if byte & 0x80: # Index Representation
+                index, consumed = decode_integer(data[i:], 7)
                 i += consumed
                 if index < 62:
-                    name, _ = static_table[index]
+                    name, value = static_table[index]
                 else:
-                    name, _ = dynamic_table.get_entry(index)
-                value, consumed = decode_string(data[i:])
-                i += consumed
-                dynamic_table.add_entry(name, value)
+                    name, value = dynamic_table.get_entry(index)
                 headers.append((name, value))
-            else:
-                return headers
 
-        elif byte & 0x00:
-            index, consumed = decode_integer(data[i:], 4)
-            if index == 0: #New Name without Incremental Indexing
-                i += consumed
-                name, consumed = decode_string(data[i:])
-                i += consumed
-                value, consumed = decode_string(data[i:])
-                i += consumed
-                headers.append((name, value))
-            elif index: #Indexed Name without Incremental Indexing
-                i += consumed
-                if index < 62:
-                    name, _ = static_table[index]
+            elif byte & 0x40:
+                index, consumed = decode_integer(data[i:], 6)
+                if index == 0: # New Name Incremental Indexing
+                    i += consumed
+                    name, consumed = decode_string(data[i:])
+                    i += consumed
+                    value, consumed = decode_string(data[i:])
+                    i += consumed
+                    dynamic_table.add_entry(name, value)
+                    headers.append((name, value))
+                elif index: # Indexed Name Incremental Indexing
+                    i += consumed
+                    if index < 62:
+                        name, _ = static_table[index]
+                    else:
+                        name, _ = dynamic_table.get_entry(index)
+                    value, consumed = decode_string(data[i:])
+                    i += consumed
+                    dynamic_table.add_entry(name, value)
+                    headers.append((name, value))
                 else:
-                    name, _ = dynamic_table.get_entry(index)
-                value, consumed = decode_string(data[i:])
-                i += consumed
-                headers.append((name, value))
-            else:
-                return headers
+                    return headers
 
-        elif byte & 0x10:
-            index, consumed = decode_integer(data[i:], 4)
-            if index == 0: #New Name Never Incremental Indexing
-                i += consumed
-                name, consumed = decode_string(data[i:])
-                i += consumed
-                value, consumed = decode_string(data[i:])
-                i += consumed
-                headers.append((name, value))
-            elif index: #Indexed Name Never Incremental Indexing
-                i += consumed
-                if index < 62:
-                    name, _ = static_table[index]
+            elif byte & 0x10:
+                index, consumed = decode_integer(data[i:], 4)
+                if index == 0: #New Name Never Incremental Indexing
+                    i += consumed
+                    name, consumed = decode_string(data[i:])
+                    i += consumed
+                    value, consumed = decode_string(data[i:])
+                    i += consumed
+                    headers.append((name, value))
+                elif index: #Indexed Name Never Incremental Indexing
+                    i += consumed
+                    if index < 62:
+                        name, _ = static_table[index]
+                    else:
+                        name, _ = dynamic_table.get_entry(index)
+                    value, consumed = decode_string(data[i:])
+                    i += consumed
+                    headers.append((name, value))
                 else:
-                    name, _ = dynamic_table.get_entry(index)
-                value, consumed = decode_string(data[i:])
+                    return headers
+            elif byte & 0x20: #Update Dynamic Table Max Size
+                index, consumed = decode_integer(data[i:], 5)
                 i += consumed
-                headers.append((name, value))
+                dynamic_table.update_max_size(index)
+
             else:
-                return headers
-        elif byte & 0x20: #Update Dynamic Table Max Size
-            index, consumed = decode_integer(data[i:], 5)
-            i += consumed
-            dynamic_table.update_max_size(index)
+                index, consumed = decode_integer(data[i:], 4)
+                if index == 0: #New Name without Incremental Indexing
+                    i += consumed
+                    name, consumed = decode_string(data[i:])
+                    i += consumed
+                    value, consumed = decode_string(data[i:])
+                    i += consumed
+                    headers.append((name, value))
+                elif index: #Indexed Name without Incremental Indexing
+                    i += consumed
+                    if index < 62:
+                        name, _ = static_table[index]
+                    else:
+                        name, _ = dynamic_table.get_entry(index)
+                    value, consumed = decode_string(data[i:])
+                    i += consumed
+                    headers.append((name, value))
+                else:
+                    return headers
 
-        else:
-            return headers
-
-    return headers
-
+        return headers
+    except Exception as e:
+        print(f"Error in decoding: {e}")
+        return []
 #-------------------------------------------End of Decoding Functions--------------------------------------------#
