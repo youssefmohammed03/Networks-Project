@@ -4,15 +4,16 @@ from connection_handler import *
 import HPACK as hpack
 from Database import *
 import frames
+from stream_manager import streamManager
 
 def frame_processor(client_socket, client_address):
     try:
         while True:
             frame = frames.Frame(read_exact(client_socket, 9))
             frame.set_payload(read_exact(client_socket, frame.get_frame_length()))
+            streamManager.stream_manager(frame, client_address, client_socket)
 
             if frame.get_frame_type() == 0x0:  # DATA frame
-                #stream_manager(frame_flags, stream_id)
                 pass
             elif frame.get_frame_type() == 0x1:  # HEADERS frame
                 client_dynamic_table[client_address] = hpack.DynamicTable()
@@ -28,6 +29,9 @@ def frame_processor(client_socket, client_address):
                 pass
             elif frame.get_frame_type() == 0x7:  # GOAWAY frame
                 #handle_goaway_frame(client_socket)
+                pass
+            elif frame.get_frame_type() == 0x2:  # PRIORITY frame
+                #handle_priority_frame(stream_id)
                 pass
             else:
                 print(f"Unknown frame type {frame.get_frame_type()} received. Ignoring.")

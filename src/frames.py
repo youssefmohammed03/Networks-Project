@@ -3,12 +3,11 @@ import struct
 class Frame:
     frame_length = 0
     frame_type = 0
-    frame_flags = []
+    frame_flags = 0x0
     stream_id = 0
     payload = b""
     server_initiated = False
     def __init__(self, frame, server_initiated=False):
-        #unpack frame header
         frame_length, frame_type, frame_flags, stream_id = struct.unpack("!I B B I", b"\x00" + frame)
         self.frame_length = frame_length
         self.frame_type = frame_type

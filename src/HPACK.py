@@ -238,6 +238,7 @@ def decode_string(data):
     return string, consumed + length
 
 def decode(dynamic_table, data):
+    data = data[5:]
     try:
         headers = []
         i = 0
