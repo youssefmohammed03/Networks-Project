@@ -1,6 +1,7 @@
 from enum import Enum
 from Database import *
 import struct
+import error_handling as error
 
 class StreamState(Enum):
     IDLE = "idle"
@@ -72,13 +73,8 @@ class StreamManager:
                 if count <= MAX_CONCURRENT_STREAMS:
                     streams[stream_id] = Stream(stream_id, client_address)
                 else:
-                    # send GOAWAY frame
-                    GOAWAY_FRAME_TYPE = 0x7
-                    GOAWAY_NO_ERROR = 0x0
-                    GOAWAY_STREAM_ID = 0x0
-                    GOAWAY_PAYLOAD = b""
-                    GOAWAY_FRAME = (struct.pack("!I", len(GOAWAY_PAYLOAD))[1:] + struct.pack("!B", GOAWAY_FRAME_TYPE) + struct.pack("!B", 0) + struct.pack("!I", GOAWAY_STREAM_ID) + GOAWAY_PAYLOAD)
-                    socket.sendall(GOAWAY_FRAME)
+                    # send reststream frame
+                    error.handle_stream_error(stream_id, error.HTTP2ErrorCodes.REFUSED_STREAM, socket, client_address, reason="Maximum concurrent streams exceeded.")
         stream = streams[stream_id]
         if (frame.get_frame_type() == 0x0) or (frame.get_frame_type() == 0x1): # DATA frame or HEADERS frame
                 if frame.get_frame_type() == 0x0: # DATA frame
@@ -99,11 +95,13 @@ class StreamManager:
                         WINDOW_UPDATE_STREAM_ID = stream_id
                         WINDOW_UPDATE_FRAME = (struct.pack("!I", len(WINDOW_UPDATE_PAYLOAD))[1:] + struct.pack("!B", WINDOW_UPDATE_FRAME_TYPE) + struct.pack("!B", 0) + struct.pack("!I", WINDOW_UPDATE_STREAM_ID) + WINDOW_UPDATE_PAYLOAD)
                         socket.sendall(WINDOW_UPDATE_FRAME)
+                        print("Window Update Frame sent for stream level for stream ID:", stream_id)
                         stream.set_size(stream.get_size() + 65535)
                     if sizes_for_sockets[client_address] < decrement:
                         WINDOW_UPDATE_STREAM_ID = 0x0
                         WINDOW_UPDATE_FRAME = (struct.pack("!I", len(WINDOW_UPDATE_PAYLOAD))[1:] + struct.pack("!B", WINDOW_UPDATE_FRAME_TYPE) + struct.pack("!B", 0) + struct.pack("!I", WINDOW_UPDATE_STREAM_ID) + WINDOW_UPDATE_PAYLOAD)
                         socket.sendall(WINDOW_UPDATE_FRAME)
+                        print("Window Update Frame sent for connection level for client address:", client_address)
                         sizes_for_sockets[client_address] += 65535
                 if 0x1 & frame.get_frame_flags(): # END_STREAM flag
                     if frame.get_server_initiated():

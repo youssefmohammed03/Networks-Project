@@ -5,6 +5,7 @@ import json
 import frame_processor as fm
 from Database import *
 import frames
+import error_handling as error
 
 HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 SETTINGS_FRAME_TYPE = 0x4
@@ -109,7 +110,7 @@ def handle_client_connection(client_socket, client_address):
         preface = read_exact(client_socket, len(HTTP2_PREFACE))
         if preface != HTTP2_PREFACE:
             print("Invalid HTTP/2 preface received. Closing connection.")
-            client_socket.close()
+            error.handle_connection_error(0, error.HTTP2ErrorCodes.PROTOCOL_ERROR, client_socket, reason="No valid HTTP/2 preface received.")
             return
         print("PREFACE received from the client.")
 
@@ -123,7 +124,7 @@ def handle_client_connection(client_socket, client_address):
 
     except Exception as e:
         print(f"Error: {e}")
-        client_socket.close()
+        error.handle_connection_error(0, error.HTTP2ErrorCodes.PROTOCOL_ERROR, client_socket, reason="")
     finally:
         if client_address in client_settings:
             del client_settings[client_address]
@@ -131,7 +132,7 @@ def handle_client_connection(client_socket, client_address):
             del client_dynamic_table[client_address]
         if client_address in sizes_for_sockets:
             del sizes_for_sockets[client_address]
-        client_socket.close()
+        error.handle_connection_error(0, error.HTTP2ErrorCodes.NO_ERROR , client_socket, reason="")
         print(f"Connection with {client_address} closed and its settings deleted.")
 
 def handle_client_thread(client_socket, client_address):
@@ -156,7 +157,7 @@ def start_server(host="192.168.1.10", port=80):
     except KeyboardInterrupt:
         print("Shutting down server...")
     finally:
-        server_socket.close()
+        error.handle_connection_error(0, error.HTTP2ErrorCodes.NO_ERROR , client_socket, reason="Shutting down server.")
 
 if __name__ == "__main__":
     start_server()

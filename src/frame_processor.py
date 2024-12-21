@@ -14,11 +14,14 @@ def frame_processor(client_socket, client_address):
             streamManager.stream_manager(frame, client_address, client_socket)
 
             if frame.get_frame_type() == 0x0:  # DATA frame
+                print("Data frame received")
                 pass
             elif frame.get_frame_type() == 0x1:  # HEADERS frame
+                print("Headers frame received")
                 client_dynamic_table[client_address] = hpack.DynamicTable()
                 headers = hpack.decode(client_dynamic_table[client_address], frame.get_payload())
                 print(headers)
+                print("Dynamic Table:", client_dynamic_table[client_address].get_table())
             elif frame.get_frame_type() == 0x4:  # SETTINGS frame
                 settings_frame_handler(client_socket, client_address, frame)
             elif frame.get_frame_type() == 0x8:  # WINDOW_UPDATE frame
@@ -31,11 +34,10 @@ def frame_processor(client_socket, client_address):
                 #handle_goaway_frame(client_socket)
                 pass
             elif frame.get_frame_type() == 0x2:  # PRIORITY frame
-                #handle_priority_frame(stream_id)
-                pass
+                print("Priority frame received")
             else:
                 print(f"Unknown frame type {frame.get_frame_type()} received. Ignoring.")
 
     except Exception as e:
         print(f"Error in frame processor for {client_address}: {e}")
-        client_socket.close()
+        return

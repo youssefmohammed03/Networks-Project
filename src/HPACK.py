@@ -121,7 +121,6 @@ def print_bytes_in_binary(byte_data):
     binary_strings = [bin(byte)[2:].zfill(8) for byte in byte_data]
     print(" ".join(binary_strings))
 
-#make it return raw bytes b''
 def print_binary_in_bytes(binary_string):
     byte_data = [int(binary_string[i:i+8], 2) for i in range(0, len(binary_string), 9)]
     print(byte_data)
