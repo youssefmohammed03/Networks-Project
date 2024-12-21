@@ -17,13 +17,16 @@ class Frame:
                 self.stream_id = last_stream_id  
                 self.payload = struct.pack("!I", error_code)  
                 whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self.payload
-            if goaway:
+            elif goaway:
                 self.frame_length = 8 + len(reason.encode('utf-8'))  
                 self.frame_type = 0x7 
                 self.frame_flags = 0   
                 self.stream_id = 0     
                 self.payload = struct.pack("!I", last_stream_id) + struct.pack("!I", error_code) + reason.encode("utf-8")
                 whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self.payload
+            else:
+                self.server_initiated = server_initiated
+                pass
         else:
             frame_length, frame_type, frame_flags, stream_id = struct.unpack("!I B B I", b"\x00" + frame)
             self.frame_length = frame_length

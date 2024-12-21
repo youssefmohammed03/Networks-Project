@@ -17,7 +17,8 @@ class Stream:
         self.stream_id = stream_id
         self.state = StreamState.IDLE
         self.client_address = client_address
-        self.size = client_settings[client_address][0x4]
+        self.size = 65535
+        self.size_for_client = client_settings[client_address][0x4]
 
     def __str__(self):
         return f"Stream ID: {self.stream_id}, State: {self.state}"
@@ -45,10 +46,20 @@ class Stream:
     
     def set_size(self, size):
         self.size = size
+    
+    def get_size_for_client(self):
+        return self.size_for_client
+    
+    def set_size_for_client(self, size_for_client):
+        self.size_for_client = size_for_client
 
 class StreamManager:
     def __init__(self):
         pass
+
+    def close_stream(self, stream_id):
+        stream = streams[stream_id]
+        stream.set_state(StreamState.CLOSED)
 
     def stream_manager(self, frame, client_address, socket):
         stream_id = frame.get_stream_id()
@@ -143,5 +154,6 @@ class StreamManager:
                 stream.set_state(StreamState.CLOSED)
             elif stream.get_state() == StreamState.RESERVED_REMOTE:
                 stream.set_state(StreamState.CLOSED)
+
 
 streamManager = StreamManager()
