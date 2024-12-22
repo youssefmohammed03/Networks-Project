@@ -34,14 +34,17 @@ class SimpleWebsite:
 
     def index(self, method, body):
         """Handles the root route ("/")."""
+        print("Index route")
         return self.create_response(200, "Welcome to the Simple HTTP/2 Website! Navigate to /about, /contact, /json, or /html.")
 
     def about(self, method, body):
         """Handles the /about route."""
+        print("About route")
         return self.create_response(200, "About: This is a simple HTTP/2 website for testing different HTTP/2 features.")
 
     def contact(self, method, body):
         """Handles the /contact route."""
+        print("Contact route")
         return self.create_response(200, "Contact: Reach us at contact@example.com")
 
     def echo(self, method, body):
