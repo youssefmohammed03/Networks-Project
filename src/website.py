@@ -8,6 +8,7 @@ class SimpleWebsite:
             "/echo": self.echo,
             "/json": self.json_response,
             "/html": self.html_response,
+            "/upload": self.upload_data,
         }
 
     def handle_request(self, request_headers, request_data):
@@ -71,21 +72,56 @@ class SimpleWebsite:
         if method == "GET":
             html_content = """
             <html>
-            <head><title>Test HTML Page</title></head>
-            <body>
-                <h1>Welcome to the HTML page</h1>
-                <p>This page has multiple links:</p>
-                <ul>
-                    <li><a href="/about">About</a></li>
-                    <li><a href="/contact">Contact</a></li>
-                    <li><a href="/json">JSON Example</a></li>
-                </ul>
-            </body>
+                <head><title>Test HTML Page</title></head>
+                <body>
+                    <h1>Welcome to the HTML page</h1>
+                    <p>This page has multiple links:</p>
+                    <ul>
+                        <li><a href="/about">About</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/json">JSON Example</a></li>
+                    </ul>
+                </body>
             </html>
             """
             return self.create_response(200, html_content, content_type="text/html")
         else:
             return self.create_response(405, "Method Not Allowed: Use GET for /html.")
+        
+    def upload_data(self, method, body, content_type):
+        """
+        Handles the /upload route for uploading large data payloads.
+        
+        Parameters:
+        - method (str): The HTTP method (e.g., POST).
+        - body (bytes): The request body containing the data.
+        - content_type (str): The content type of the request.
+
+        Returns:
+        - A tuple of (response_headers, response_data).
+        """
+        if method == "POST":
+            if body:
+                data_size = len(body)
+                print(f"Received {data_size} bytes of data")
+                print(body.decode("utf-8"))
+                return self.create_response(
+                    200, 
+                    f"Data received successfully. Size: {data_size} bytes.",
+                    content_type="text/plain"
+                )
+            else:
+                return self.create_response(
+                    400, 
+                    "No data received. Please send a non-empty body.",
+                    content_type="text/plain"
+                )
+        else:
+            return self.create_response(
+                405, 
+                "Method Not Allowed: Use POST for /upload.",
+                content_type="text/plain"
+            )
 
     def not_found(self, method, body, content_type):
         """Handles non-existent routes."""
