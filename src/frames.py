@@ -8,7 +8,7 @@ class Frame:
     payload = b""
     server_initiated = False
     whole_frame = b""
-    def __init__(self, frame, server_initiated=False, rst_stream=False, goaway=False, last_stream_id=0, error_code=0, reason=""):
+    def __init__(self, frame, server_initiated=False, rst_stream=False, goaway=False, data=None, header=None, end_stream=False, stream_id_resp=0, last_stream_id=0, error_code=0, reason=""):
         if server_initiated:
             if rst_stream:
                 self.frame_length = 8  
@@ -23,6 +23,28 @@ class Frame:
                 self.frame_flags = 0   
                 self.stream_id = 0     
                 self.payload = struct.pack("!I", last_stream_id) + struct.pack("!I", error_code) + reason.encode("utf-8")
+                self.whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self.payload
+            elif data:
+                self.frame_length = len(data)  
+                self.frame_type = 0x0 
+                if end_stream:
+                    self.frame_flags = 0x1 
+                else:
+                    self.frame_flags = 0x0   
+                self.stream_id = stream_id_resp  
+                self.payload = data
+                self.server_initiated = server_initiated
+                self.whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self.payload
+            elif header:
+                self.frame_length = len(header)  
+                self.frame_type = 0x1  
+                if end_stream:
+                    self.frame_flags = 0x1 
+                else:
+                    self.frame_flags = 0x0   
+                self.stream_id = stream_id_resp  
+                self.payload = header
+                self.server_initiated = server_initiated
                 whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self.payload
             else:
                 self.server_initiated = server_initiated

@@ -2,6 +2,9 @@ from enum import Enum
 from Database import *
 import struct
 import error_handling as error
+from connection_handler import read_exact
+
+DEFAULT_FRAME_SIZE = 16384 
 
 class StreamState(Enum):
     IDLE = "idle"
@@ -112,6 +115,23 @@ class StreamManager:
         stream = streams[stream_id]
         if (frame.get_frame_type() == 0x0) or (frame.get_frame_type() == 0x1): # DATA frame or HEADERS frame
                 if frame.get_frame_type() == 0x0: # DATA frame
+                    if frame.get_server_initiated() and frame.get_frame_flags() & 0x0: # No END_STREAM flag
+                        stream.set_response_body(frame.get_payload())
+                        """ for i in range(2):
+                            if (DEFAULT_FRAME_SIZE > sizes_for_sockets_for_clients[client_address]) or DEFAULT_FRAME_SIZE > stream.get_size_for_client():
+                                frame_header = read_exact(socket, 9)
+                                frame_length, frame_type, frame_flags, stream_id_window = struct.unpack("!I B B I", b"\x00" + frame_header)
+                                frame_payload = read_exact(socket, frame_length)
+                                if frame_type == 0x8: 
+                                    if stream_id_window == 0:
+                                        WINDOW_UPDATE_INCREMENT = struct.unpack("!I", frame_payload)[0]
+                                        sizes_for_sockets_for_clients[client_address] += WINDOW_UPDATE_INCREMENT
+                                    if stream_id_window == stream_id:
+                                        WINDOW_UPDATE_INCREMENT = struct.unpack("!I", frame_payload)[0]
+                                        stream.set_size_for_client(stream.get_size_for_client() + WINDOW_UPDATE_INCREMENT) """
+                        socket.sendall(frame.get_whole_frame())
+                        """ stream.set_size_for_client(stream.get_size_for_client() - len(frame.get_payload()))
+                        sizes_for_sockets_for_clients[client_address] -= len(frame.get_payload()) """
                     if frame.get_frame_flags() & 0x8:
                         padding_length = frame.get_payload()[0] + 1
                         decrement = (len(frame.get_payload()) - padding_length)
@@ -138,6 +158,8 @@ class StreamManager:
                         sizes_for_sockets[client_address] += 65535
                 if 0x1 & frame.get_frame_flags(): # END_STREAM flag
                     if frame.get_server_initiated():
+                        stream.set_response_body(frame.get_payload())
+                        socket.sendall(frame.get_whole_frame())
                         if stream.get_state() == StreamState.OPEN:
                             stream.set_state(StreamState.HALF_CLOSED_REMOTE)
                         elif stream.get_state() == StreamState.HALF_CLOSED_LOCAL:
@@ -149,6 +171,8 @@ class StreamManager:
                             stream.set_state(StreamState.CLOSED)
         elif frame.get_frame_type() == 0x1 and (0x1 & frame.get_frame_flags() == 0): # HEADERS frame without END_STREAM flag
             if frame.get_server_initiated():
+                stream.set_response_header(frame.get_payload())
+                socket.sendall(frame.get_whole_frame())
                 if stream.get_state() == StreamState.IDLE:
                     stream.set_state(StreamState.OPEN)
                 elif stream.get_state() == StreamState.RESERVED_REMOTE:

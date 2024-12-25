@@ -77,7 +77,8 @@ def store_client_settings(frame_length, settings_payload, client_address):
     for i in range(0, frame_length, 6):
         key, value = struct.unpack("!H I", settings_payload[i:i + 6])
         client_settings[client_address][key] = value 
-    sizes_for_sockets[client_address] = client_settings[client_address][0x4]
+    sizes_for_sockets[client_address] = 65535
+    sizes_for_sockets_for_clients[client_address] = client_settings[client_address][0x4]
     print(f"Stored settings for client.")
 
 def settings_frame_handler(client_socket, client_address, frame):
@@ -132,6 +133,8 @@ def handle_client_connection(client_socket, client_address):
             del client_dynamic_table[client_address]
         if client_address in sizes_for_sockets:
             del sizes_for_sockets[client_address]
+        if client_address in sizes_for_sockets_for_clients:
+            del sizes_for_sockets_for_clients[client_address]
         error.handle_connection_error(0, error.HTTP2ErrorCodes.NO_ERROR , client_socket, reason="")
         print(f"Connection with {client_address} closed and its settings deleted.")
 
@@ -148,8 +151,9 @@ def start_server(host="192.168.1.10", port=80):
     try:
         while True:
             client_socket, client_address = server_socket.accept()
-            sizes_for_sockets[client_address] = 0
             client_address = client_address[0]
+            sizes_for_sockets[client_address] = 0
+            sizes_for_sockets_for_clients[client_address] = 0
             print(f"Accepted connection from {client_address}")
             client_dynamic_table[client_address] = {}
             client_thread = threading.Thread(target=handle_client_thread, args=(client_socket, client_address))

@@ -16,11 +16,11 @@ def frame_processor(client_socket, client_address):
             if frame.get_frame_type() == 0x0:  # DATA frame
                 print("Data frame received")
                 streamManager.stream_manager(frame, client_address, client_socket)
-                parse_data_frame(frame)
+                parse_data_frame(frame, client_address, frame.get_stream_id(), client_socket)
             elif frame.get_frame_type() == 0x1:  # HEADERS frame
                 print("Headers frame received")
                 streamManager.stream_manager(frame, client_address, client_socket)
-                parse_headers_frame(frame, client_address)
+                parse_headers_frame(frame, client_address, frame.get_stream_id(), client_socket)
             elif frame.get_frame_type() == 0x2:  # PRIORITY frame
                 print("Priority frame received")
             elif frame.get_frame_type() == 0x3:  # RST_STREAM frame
@@ -39,10 +39,11 @@ def frame_processor(client_socket, client_address):
                 streamManager.close_stream(last_stream_id)
                 client_socket.close()
             elif frame.get_frame_type() == 0x8:  # WINDOW_UPDATE frame
+                #will be handled in stream_manager
                 pass
             else:
                 print(f"Unknown frame type {frame.get_frame_type()} received. Ignoring.")
 
     except Exception as e:
-        print(f"Error in frame processor for {client_address}: {e}")
+        print(f"Error for {client_address}: {e}")
         return
