@@ -6,6 +6,8 @@ import frame_processor as fm
 from Database import *
 import frames
 import error_handling as error
+import tkinter as tk
+from server_app import *
 
 HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 SETTINGS_FRAME_TYPE = 0x4
@@ -164,4 +166,6 @@ def start_server(host="192.168.1.10", port=80):
         error.handle_connection_error(0, error.HTTP2ErrorCodes.NO_ERROR , client_socket, reason="Shutting down server.")
 
 if __name__ == "__main__":
+    gui_thread = threading.Thread(target=start_gui, daemon=True)
+    gui_thread.start()
     start_server()
