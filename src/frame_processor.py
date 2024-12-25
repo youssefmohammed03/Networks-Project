@@ -35,7 +35,14 @@ def frame_processor(client_socket, client_address):
                 client_socket.sendall(ping_ack_frame.get_whole_frame())
             elif frame.get_frame_type() == 0x7:  # GOAWAY frame
                 print("Goaway frame received")
-                last_stream_id, error_code, reason = struct.unpack("!I I", frame.get_payload()[:8])
+                last_stream_id, error_code = struct.unpack("!I I", frame.get_payload()[:8])
+                reason = frame.get_payload()[8:].decode("utf-8", errors="ignore")
+                print(f"Last Stream ID: {last_stream_id}")
+                print(f"Error Code: {error_code}")
+                if reason:
+                    print(f"Reason: {reason}")
+                else:
+                    print("No reason provided.")
                 streamManager.close_stream(last_stream_id)
                 client_socket.close()
             elif frame.get_frame_type() == 0x8:  # WINDOW_UPDATE frame

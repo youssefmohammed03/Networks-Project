@@ -52,7 +52,10 @@ def construct_response(headers, data, client_address, stream_id_resp, socket):
     header_block_fragment = b''
     for header in headers:
         header_block_fragment += hpack.encode(client_dynamic_table[client_address], header[0], header[1])
-    header_frame_response = Frame(frame=None, server_initiated=True, header=header_block_fragment, end_stream=True, stream_id_resp=stream_id_resp)
+    if data:
+        header_frame_response = Frame(frame=None, server_initiated=True, header=header_block_fragment, end_stream=False, stream_id_resp=stream_id_resp)
+    else:
+        header_frame_response = Frame(frame=None, server_initiated=True, header=header_block_fragment, end_stream=True, stream_id_resp=stream_id_resp)
     streamManager.stream_manager(header_frame_response, client_address, socket)
     DEFAULT_FRAME_SIZE = 16384 
 

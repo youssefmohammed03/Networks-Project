@@ -2,7 +2,6 @@ from enum import Enum
 from Database import *
 import struct
 import error_handling as error
-from connection_handler import read_exact
 
 DEFAULT_FRAME_SIZE = 16384 
 
@@ -75,7 +74,7 @@ class Stream:
         return self.response
     
     def set_response_header(self, response):
-        self.response["header"] = self.response["header"] + response
+        self.response["header"] = response
 
     def set_response_body(self, response):
         self.response["body"] = self.response["body"] + response
@@ -114,6 +113,11 @@ class StreamManager:
                     error.handle_stream_error(stream_id, error.HTTP2ErrorCodes.REFUSED_STREAM, socket, client_address, reason="Maximum concurrent streams exceeded.")
         stream = streams[stream_id]
         if (frame.get_frame_type() == 0x0) or (frame.get_frame_type() == 0x1): # DATA frame or HEADERS frame
+                if frame.get_frame_type() == 0x1: # Header frame
+                    if frame.get_server_initiated() and frame.get_frame_flags() & 0x4:
+                        stream.set_response_header(frame.get_payload())
+                        socket.sendall(frame.get_whole_frame())
+                        print("Header Frame sent for stream ID:", stream_id)
                 if frame.get_frame_type() == 0x0: # DATA frame
                     if frame.get_server_initiated() and frame.get_frame_flags() & 0x0: # No END_STREAM flag
                         stream.set_response_body(frame.get_payload())
@@ -130,6 +134,7 @@ class StreamManager:
                                         WINDOW_UPDATE_INCREMENT = struct.unpack("!I", frame_payload)[0]
                                         stream.set_size_for_client(stream.get_size_for_client() + WINDOW_UPDATE_INCREMENT) """
                         socket.sendall(frame.get_whole_frame())
+                        print("Data Frame sent for stream ID:", stream_id)
                         """ stream.set_size_for_client(stream.get_size_for_client() - len(frame.get_payload()))
                         sizes_for_sockets_for_clients[client_address] -= len(frame.get_payload()) """
                     if frame.get_frame_flags() & 0x8:
@@ -158,8 +163,14 @@ class StreamManager:
                         sizes_for_sockets[client_address] += 65535
                 if 0x1 & frame.get_frame_flags(): # END_STREAM flag
                     if frame.get_server_initiated():
-                        stream.set_response_body(frame.get_payload())
-                        socket.sendall(frame.get_whole_frame())
+                        if frame.get_frame_type() == 0x0: # DATA frame
+                            stream.set_response_body(frame.get_payload())
+                            socket.sendall(frame.get_whole_frame())
+                            print("Data Frame sent for stream ID:", stream_id)
+                        if frame.get_frame_type() == 0x1: # HEADERS frame
+                            stream.set_response_header(frame.get_payload())
+                            socket.sendall(frame.get_whole_frame())
+                            print("Header Frame sent for stream ID:", stream_id)
                         if stream.get_state() == StreamState.OPEN:
                             stream.set_state(StreamState.HALF_CLOSED_REMOTE)
                         elif stream.get_state() == StreamState.HALF_CLOSED_LOCAL:

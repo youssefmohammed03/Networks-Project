@@ -39,13 +39,13 @@ class Frame:
                 self.frame_length = len(header)  
                 self.frame_type = 0x1  
                 if end_stream:
-                    self.frame_flags = 0x1 
+                    self.frame_flags = 0x5 
                 else:
-                    self.frame_flags = 0x0   
+                    self.frame_flags = 0x4   
                 self.stream_id = stream_id_resp  
                 self.payload = header
                 self.server_initiated = server_initiated
-                whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self.payload
+                self.whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self.payload
             else:
                 self.server_initiated = server_initiated
                 pass
