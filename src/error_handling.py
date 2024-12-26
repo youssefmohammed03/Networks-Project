@@ -2,6 +2,9 @@ import struct
 import socket
 from stream_manager import *
 import frames
+from logger_setup import get_logger
+
+logger = get_logger()
 
 class HTTP2ErrorCodes:
     NO_ERROR = 0x0            # Graceful shutdown
@@ -27,13 +30,13 @@ class HTTP2Error(Exception):
 
 # what cant i make this function take socket argument
 def handle_connection_error(stream_id, error_code, socket, reason=""):
-    print(f"[CONNECTION ERROR] Stream ID: {stream_id}, Error Code: {error_code}, Reason: {reason}")
+    logger.info(f"[CONNECTION ERROR] Stream ID: {stream_id}, Error Code: {error_code}, Reason: {reason}")
     goaway_frame = construct_goaway_frame(stream_id, error_code, reason)
     send_frame(goaway_frame, socket)
     terminate_connection(socket)
 
 def handle_stream_error(stream_id, error_code, socket, client_address, reason=""):
-    print(f"[STREAM ERROR] Stream ID: {stream_id}, Error Code: {error_code}, Reason: {reason}")
+    logger.info(f"[STREAM ERROR] Stream ID: {stream_id}, Error Code: {error_code}, Reason: {reason}")
     rst_stream_frame = construct_rst_stream_frame(stream_id, error_code)
     send_frame(rst_stream_frame, socket)
     close_stream(rst_stream_frame, client_address, socket)
@@ -48,12 +51,12 @@ def construct_rst_stream_frame(stream_id, error_code):
 
 def send_frame(frame, socket):
     socket.sendall(frame.get_whole_frame())
-    print(f"[SEND FRAME] {frame}")
+    logger.info(f"[SEND FRAME] {frame}")
 
 def terminate_connection(socket):
     socket.close()
-    print("[CONNECTION TERMINATED]")
+    logger.info("[CONNECTION TERMINATED]")
 
 def close_stream(frame, client_address, socket):
     streamManager.stream_manager(frame, client_address, socket)
-    print(f"[STREAM CLOSED] Stream ID: {frame.get()}")
+    logger.info(f"[STREAM CLOSED] Stream ID: {frame.get()}")

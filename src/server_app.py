@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext
-import threading
 import logging
+from logger_setup import get_logger
 
 class ServerApp:
     def __init__(self, root):
@@ -24,8 +24,7 @@ class ServerApp:
         self.show_page("Login")
 
         # Logger setup
-        self.logger = logging.getLogger("ServerApp")
-        self.logger.setLevel(logging.INFO)
+        self.logger = get_logger()
         self.log_handler = TextHandler(self.pages["Log"].log_text)
         self.logger.addHandler(self.log_handler)
 
@@ -35,7 +34,7 @@ class ServerApp:
         frame.grid(row=0, column=0, sticky="nsew")
 
     def create_control_page(self):
-        frame = ControlPage(self.container, self.show_page, self.start_server)
+        frame = ControlPage(self.container, self.show_page)
         self.pages["Control"] = frame
         frame.grid(row=0, column=0, sticky="nsew")
 
@@ -48,11 +47,8 @@ class ServerApp:
         page = self.pages[page_name]
         page.tkraise()
 
-    def start_server(self):
-        threading.Thread(target=self.run_server, daemon=True).start()
-
-    def run_server(self):
-        self.logger.info("Starting server...")
+    def log(self, string):
+        self.logger.info(string)
 
 
 class LoginPage(tk.Frame):
@@ -84,20 +80,13 @@ class LoginPage(tk.Frame):
 
 
 class ControlPage(tk.Frame):
-    def __init__(self, parent, show_page, start_server_callback):
+    def __init__(self, parent, show_page):
         super().__init__(parent)
         self.show_page = show_page
-        self.start_server_callback = start_server_callback
 
         tk.Label(self, text="Server Control Panel", font=("Arial", 16)).pack(pady=10)
 
-        self.start_button = tk.Button(self, text="Start Server", command=self.start_server)
-        self.start_button.pack(pady=10)
-
         tk.Button(self, text="View Logs", command=lambda: self.show_page("Log")).pack(pady=10)
-
-    def start_server(self):
-        self.start_server_callback()
 
 
 class LogPage(tk.Frame):

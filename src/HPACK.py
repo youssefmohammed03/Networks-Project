@@ -1,4 +1,7 @@
 import huffman_table as ht
+from logger_setup import get_logger
+
+logger = get_logger()
 
 # ----------------------------------------- Static Table -------------------------------------------------#
 
@@ -322,6 +325,6 @@ def decode(dynamic_table, data):
 
         return headers
     except Exception as e:
-        print(f"Error in decoding: {e}")
+        logger.info(f"Error in decoding: {e}")
         return []
 #-------------------------------------------End of Decoding Functions--------------------------------------------#

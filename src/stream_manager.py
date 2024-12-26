@@ -2,6 +2,9 @@ from enum import Enum
 from Database import *
 import struct
 import error_handling as error
+from logger_setup import get_logger
+
+logger = get_logger()
 
 DEFAULT_FRAME_SIZE = 16384 
 
@@ -126,17 +129,21 @@ class StreamManager:
                     if frame.get_server_initiated():
                         if stream.get_state() == StreamState.IDLE:
                             stream.set_state(StreamState.OPEN)
+                            logger.info(f"Stream ID: {stream_id}, IDLE -> OPEN")
                         elif stream.get_state() == StreamState.RESERVED_REMOTE:
                             stream.set_state(StreamState.HALF_CLOSED_LOCAL)
+                            logger.info(f"Stream ID: {stream_id}, RESERVED_REMOTE -> HALF-CLOSED_LOCAL")
                     else:
                         if stream.get_state() == StreamState.IDLE:
                             stream.set_state(StreamState.OPEN)
+                            logger.info(f"Stream ID: {stream_id}, IDLE -> OPEN")
                         elif stream.get_state() == StreamState.RESERVED_LOCAL:
                             stream.set_state(StreamState.HALF_CLOSED_REMOTE)
+                            logger.info(f"Stream ID: {stream_id}, RESERVED_LOCAL -> HALF-CLOSED_REMOTE")
                     if frame.get_server_initiated() and frame.get_frame_flags() & 0x4:
                         stream.set_response_header(frame.get_payload())
                         socket.sendall(frame.get_whole_frame())
-                        print("Header Frame sent for stream ID:", stream_id)
+                        logger.info(f"Header Frame sent for stream ID: {stream_id}")
                 if frame.get_frame_type() == 0x0: # DATA frame
                     if frame.get_server_initiated() and frame.get_frame_flags() & 0x0: # No END_STREAM flag
                         stream.set_response_body(frame.get_payload())
@@ -153,7 +160,7 @@ class StreamManager:
                                         WINDOW_UPDATE_INCREMENT = struct.unpack("!I", frame_payload)[0]
                                         stream.set_size_for_client(stream.get_size_for_client() + WINDOW_UPDATE_INCREMENT)
                         socket.sendall(frame.get_whole_frame())
-                        print("Data Frame sent for stream ID:", stream_id)
+                        logger.info(f"Data Frame sent for stream ID: {stream_id}")
                         stream.set_size_for_client(stream.get_size_for_client() - len(frame.get_payload()))
                         sizes_for_sockets_for_clients[client_address] -= len(frame.get_payload())
                     if frame.get_frame_flags() & 0x8:
@@ -172,51 +179,62 @@ class StreamManager:
                         WINDOW_UPDATE_STREAM_ID = stream_id
                         WINDOW_UPDATE_FRAME = (struct.pack("!I", len(WINDOW_UPDATE_PAYLOAD))[1:] + struct.pack("!B", WINDOW_UPDATE_FRAME_TYPE) + struct.pack("!B", 0) + struct.pack("!I", WINDOW_UPDATE_STREAM_ID) + WINDOW_UPDATE_PAYLOAD)
                         socket.sendall(WINDOW_UPDATE_FRAME)
-                        print("Window Update Frame sent for stream level for stream ID:", stream_id)
+                        logger.info(f"Window Update Frame sent for stream level for stream ID: {stream_id}")
                         stream.set_size(stream.get_size() + 65535)
                     if sizes_for_sockets[client_address] < decrement:
                         WINDOW_UPDATE_STREAM_ID = 0x0
                         WINDOW_UPDATE_FRAME = (struct.pack("!I", len(WINDOW_UPDATE_PAYLOAD))[1:] + struct.pack("!B", WINDOW_UPDATE_FRAME_TYPE) + struct.pack("!B", 0) + struct.pack("!I", WINDOW_UPDATE_STREAM_ID) + WINDOW_UPDATE_PAYLOAD)
                         socket.sendall(WINDOW_UPDATE_FRAME)
-                        print("Window Update Frame sent for connection level for client address:", client_address)
+                        logger.info(f"Window Update Frame sent for connection level for client address: {client_address}")
                         sizes_for_sockets[client_address] += 65535
                 if 0x1 & frame.get_frame_flags(): # END_STREAM flag
                     if frame.get_server_initiated():
                         if frame.get_frame_type() == 0x0: # DATA frame
                             stream.set_response_body(frame.get_payload())
                             socket.sendall(frame.get_whole_frame())
-                            print("Data Frame sent for stream ID:", stream_id)
+                            logger.info(f"Data Frame sent for stream ID: {stream_id}")
                         if frame.get_frame_type() == 0x1: # HEADERS frame
                             stream.set_response_header(frame.get_payload())
                             socket.sendall(frame.get_whole_frame())
-                            print("Header Frame sent for stream ID:", stream_id)
+                            logger.info(f"Header Frame sent for stream ID: {stream_id}")
                         if stream.get_state() == StreamState.OPEN:
                             stream.set_state(StreamState.HALF_CLOSED_REMOTE)
+                            logger.info(f"Stream ID: {stream_id}, OPEN -> HALF-CLOSED_REMOTE")
                         elif stream.get_state() == StreamState.HALF_CLOSED_LOCAL:
                             stream.set_state(StreamState.CLOSED)
+                            logger.info(f"Stream ID: {stream_id}, HALF-CLOSED_LOCAL -> CLOSED")
                     else:
                         if stream.get_state() == StreamState.OPEN:
                             stream.set_state(StreamState.HALF_CLOSED_LOCAL)
+                            logger.info(f"Stream ID: {stream_id}, OPEN -> HALF-CLOSED_LOCAL")
                         elif stream.get_state() == StreamState.HALF_CLOSED_REMOTE:
                             stream.set_state(StreamState.CLOSED)
+                            logger.info(f"Stream ID: {stream_id}, HALF-CLOSED_REMOTE -> CLOSED")
         elif frame.get_frame_type() == 0x5 and (0x1 & frame.get_frame_flags()==0): # PUSH_PROMISE frame without END_HEADERS flag
             if frame.get_server_initiated():
                 if stream.get_state() == StreamState.IDLE:
                     stream.set_state(StreamState.RESERVED_REMOTE)
+                    logger.info(f"Stream ID: {stream_id}, IDLE -> RESERVED_REMOTE")
             else:
                 if stream.get_state() == StreamState.IDLE:
                     stream.set_state(StreamState.RESERVED_LOCAL)
+                    logger.info(f"Stream ID: {stream_id}, IDLE -> RESERVED_LOCAL")
         elif frame.get_frame_type() == 0x3: # RST_STREAM frame  
             if stream.get_state() == StreamState.OPEN:
                 stream.set_state(StreamState.CLOSED)
+                logger.info(f"Stream ID: {stream_id}, OPEN -> CLOSED")
             elif stream.get_state() == StreamState.HALF_CLOSED_LOCAL:
                 stream.set_state(StreamState.CLOSED)
+                logger.info(f"Stream ID: {stream_id}, HALF-CLOSED_LOCAL -> CLOSED")
             elif stream.get_state() == StreamState.HALF_CLOSED_REMOTE:
                 stream.set_state(StreamState.CLOSED)
+                logger.info(f"Stream ID: {stream_id}, HALF-CLOSED_REMOTE -> CLOSED")
             elif stream.get_state() == StreamState.RESERVED_LOCAL:
                 stream.set_state(StreamState.CLOSED)
+                logger.info(f"Stream ID: {stream_id}, RESERVED_LOCAL -> CLOSED")
             elif stream.get_state() == StreamState.RESERVED_REMOTE:
                 stream.set_state(StreamState.CLOSED)
+                logger.info(f"Stream ID: {stream_id}, RESERVED_REMOTE -> CLOSED")
 
 
 streamManager = StreamManager()
