@@ -73,7 +73,7 @@ class SimpleWebsite:
     </head>
     <body>
         <h1>Welcome to the HTML page</h1>
-        <p>This page has multiple links:</p>
+        <p>This page has link:</p>
         <ul>
             <li><a href="/json">JSON Example</a></li>
         </ul>
