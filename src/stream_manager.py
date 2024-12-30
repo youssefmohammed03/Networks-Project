@@ -8,15 +8,6 @@ logger = get_logger()
 
 DEFAULT_FRAME_SIZE = 16384 
 
-def read_exact(sock, length):
-    data = b""
-    while len(data) < length:
-        chunk = sock.recv(length - len(data))
-        if not chunk:
-            raise ConnectionError("Connection closed by client.")
-        data += chunk
-    return data
-
 class StreamState(Enum):
     IDLE = "idle"
     RESERVED_LOCAL = "reserved (local)"
@@ -147,22 +138,8 @@ class StreamManager:
                 if frame.get_frame_type() == 0x0: # DATA frame
                     if frame.get_server_initiated() and frame.get_frame_flags() & 0x0: # No END_STREAM flag
                         stream.set_response_body(frame.get_payload())
-                        for i in range(2):
-                            if (DEFAULT_FRAME_SIZE > sizes_for_sockets_for_clients[client_address]) or DEFAULT_FRAME_SIZE > stream.get_size_for_client():
-                                frame_header = read_exact(socket, 9)
-                                frame_length, frame_type, frame_flags, stream_id_window = struct.unpack("!I B B I", b"\x00" + frame_header)
-                                frame_payload = read_exact(socket, frame_length)
-                                if frame_type == 0x8: 
-                                    if stream_id_window == 0:
-                                        WINDOW_UPDATE_INCREMENT = struct.unpack("!I", frame_payload)[0]
-                                        sizes_for_sockets_for_clients[client_address] += WINDOW_UPDATE_INCREMENT
-                                    if stream_id_window == stream_id:
-                                        WINDOW_UPDATE_INCREMENT = struct.unpack("!I", frame_payload)[0]
-                                        stream.set_size_for_client(stream.get_size_for_client() + WINDOW_UPDATE_INCREMENT)
                         socket.sendall(frame.get_whole_frame())
                         logger.info(f"Data Frame sent for stream ID: {stream_id}")
-                        stream.set_size_for_client(stream.get_size_for_client() - len(frame.get_payload()))
-                        sizes_for_sockets_for_clients[client_address] -= len(frame.get_payload())
                     if frame.get_frame_flags() & 0x8:
                         padding_length = frame.get_payload()[0] + 1
                         decrement = (len(frame.get_payload()) - padding_length)

@@ -32,7 +32,6 @@ def get_header_block_fragment(frame):
 
 def parse_headers_frame(frame, client_address, stream_id, socket):
     header_block_fragment = get_header_block_fragment(frame)
-    client_dynamic_table[client_address] = hpack.DynamicTable()
     headers = hpack.decode(client_dynamic_table[client_address], header_block_fragment)
     stream = streams[frame.get_stream_id()]
     headers = dict(headers)

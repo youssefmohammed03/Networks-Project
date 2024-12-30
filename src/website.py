@@ -2,14 +2,24 @@ class SimpleWebsite:
     def __init__(self):
         # Define your routes and methods
         self.routes = {
-            "/": self.index,
-            "/about": self.about,
-            "/contact": self.contact,
             "/echo": self.echo,
             "/json": self.json_response,
             "/html": self.html_response,
             "/upload": self.upload_data,
+            "/styles.css": self.serve_css,
         }
+
+    def serve_css(self, method, body, content_type):
+        """Serves the CSS file."""
+        if method == "GET":
+            try:
+                with open("styles.css", "r") as css_file:
+                    css_content = css_file.read()
+                return self.create_response(200, css_content, content_type="text/css")
+            except FileNotFoundError:
+                return self.create_response(404, "CSS file not found.")
+        else:
+            return self.create_response(405, "Method Not Allowed: Use GET for /styles.css.")
 
     def handle_request(self, request_headers, request_data):
         """
@@ -36,18 +46,6 @@ class SimpleWebsite:
         else:
             return self.not_found(method, request_data, content_type)
 
-    def index(self, method, body, content_type):
-        """Handles the root route ("/")."""
-        return self.create_response(200, "Welcome to the Simple HTTP/2 Website! Navigate to /about, /contact, /json, or /html.")
-
-    def about(self, method, body, content_type):
-        """Handles the /about route."""
-        return self.create_response(200, "About: This is a simple HTTP/2 website for testing different HTTP/2 features.")
-
-    def contact(self, method, body, content_type):
-        """Handles the /contact route."""
-        return self.create_response(200, "Contact: Reach us at contact@example.com")
-
     def echo(self, method, body, content_type):
         """Handles the /echo route (for POST requests)."""
         if method == "POST" and body:
@@ -69,17 +67,20 @@ class SimpleWebsite:
         if method == "GET":
             html_content = """
             <html>
-                <head><title>Test HTML Page</title></head>
-                <body>
-                    <h1>Welcome to the HTML page</h1>
-                    <p>This page has multiple links:</p>
-                    <ul>
-                        <li><a href="/about">About</a></li>
-                        <li><a href="/contact">Contact</a></li>
-                        <li><a href="/json">JSON Example</a></li>
-                    </ul>
-                </body>
-            </html>
+    <head>
+        <title>Test HTML Page</title>
+        <link rel="stylesheet" type="text/css" href="/styles.css">
+    </head>
+    <body>
+        <h1>Welcome to the HTML page</h1>
+        <p>This page has multiple links:</p>
+        <ul>
+            <li><a href="/json">JSON Example</a></li>
+        </ul>
+
+        </body>
+</html>
+
             """
             return self.create_response(200, html_content, content_type="text/html")
         else:

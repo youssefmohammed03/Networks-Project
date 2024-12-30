@@ -55,5 +55,4 @@ def frame_processor(client_socket, client_address):
                 logger.info(f"Unknown frame type {frame.get_frame_type()} received. Ignoring.")
 
     except Exception as e:
-        logger.info(f"Error for {client_address}: {e}")
         return

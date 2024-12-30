@@ -74,7 +74,7 @@ static_table = [
 # ------------------------------------ Dynamic Table Implementation ---------------------------------------------#
 
 class DynamicTable:
-    def __init__(self, max_size=4096):
+    def __init__(self, max_size=65536):
         self.table = []
         self.current_size = 0
         self.max_size = max_size
@@ -116,6 +116,10 @@ class DynamicTable:
     def update_max_size(self, new_max_size):
         self.max_size = new_max_size
 
+    def print_table(self):
+        for i, (name, value) in enumerate(self.table):
+            print(f"Index: {i + 62}, Name: {name}, Value: {value}")
+
 # ------------------------------------ End of Dynamic Table Implementation --------------------------------------#
 
 #-----------------------------------------------Ecoding Functions------------------------------------------------#
@@ -143,9 +147,6 @@ def encode_integer(value, prefix_bits):
     
 
 def encode_string(string, huffman=False):
-    """
-    Encodes a string with optional Huffman encoding.
-    """
     encoded = string.encode("utf-8")
     huffman_flag = 0x80 if huffman else 0x00
     length_encoded = encode_integer(len(encoded), 7)
@@ -204,9 +205,6 @@ def encode(dynamic_table, name, value, indexing = True):
 #-----------------------------------------------Decoding Functions-----------------------------------------------#
 
 def decode_integer(data, prefix_bits):
-    """
-    Decodes an integer from the HPACK variable-length encoding.
-    """
     mask = (1 << prefix_bits) - 1 
     value = data[0] & mask  
     if value < mask:  
@@ -227,9 +225,6 @@ def decode_integer(data, prefix_bits):
 
 
 def decode_string(data):
-    """
-    Decodes a string from HPACK format.
-    """
     huffman = data[0] & 0x80
     if huffman:
         length, consumed = decode_integer(data, 7)
@@ -325,6 +320,5 @@ def decode(dynamic_table, data):
 
         return headers
     except Exception as e:
-        logger.info(f"Error in decoding: {e}")
         return []
 #-------------------------------------------End of Decoding Functions--------------------------------------------#

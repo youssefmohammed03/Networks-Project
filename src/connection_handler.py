@@ -2,9 +2,11 @@ import socket
 import struct
 import threading
 import json
+import ssl
 import frame_processor as fm
 from Database import *
 import frames
+import HPACK as hpack
 import error_handling as error
 import tkinter as tk
 from server_app import *
@@ -140,13 +142,13 @@ def handle_client_connection(client_socket, client_address):
             del sizes_for_sockets[client_address]
         if client_address in sizes_for_sockets_for_clients:
             del sizes_for_sockets_for_clients[client_address]
-        error.handle_connection_error(0, error.HTTP2ErrorCodes.NO_ERROR , client_socket, reason="")
+        streams.clear()
         logger.info(f"Connection with {client_address} closed and its data deleted.")
 
 def handle_client_thread(client_socket, client_address):
     handle_client_connection(client_socket, client_address)
 
-def start_server(host="192.168.1.7", port=80):
+def start_server(host="192.168.1.7", port=443):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, port))
@@ -154,19 +156,37 @@ def start_server(host="192.168.1.7", port=80):
     logger.info(f"Server is listening on {host}:{port}")
 
     try:
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        context.load_cert_chain(certfile='certificate.crt', keyfile='private.key')
+        context.set_alpn_protocols(["h2", "http/1.1"])
+    except ssl.SSLError as e:
+        logger.info(f"SSL error: {e}")
+        return
+    try:
         while True:
-            client_socket, client_address = server_socket.accept()
-            client_address = client_address[0]
-            sizes_for_sockets[client_address] = 0
-            sizes_for_sockets_for_clients[client_address] = 0
-            logger.info(f"Accepted connection from {client_address}")
-            client_dynamic_table[client_address] = {}
-            client_thread = threading.Thread(target=handle_client_thread, args=(client_socket, client_address))
-            client_thread.start()
+            try:
+                client_socket, client_address = server_socket.accept()
+                secure_socket = context.wrap_socket(client_socket, server_side=True)
+                selected_protocol = secure_socket.selected_alpn_protocol()
+                if selected_protocol == "h2":
+                    logger.info(f"HTTP/2")
+                else:
+                    logger.info(f"HTTP/1.1")
+                client_address = client_address[0]
+                sizes_for_sockets[client_address] = 0
+                sizes_for_sockets_for_clients[client_address] = 0
+                logger.info(f"Accepted connection from {client_address}")
+                client_dynamic_table[client_address] = hpack.DynamicTable()
+                client_thread = threading.Thread(target=handle_client_thread, args=(secure_socket, client_address))
+                client_thread.start()
+            except Exception as e:
+                pass
     except KeyboardInterrupt:
         logger.info("Shutting down server...")
     finally:
-        error.handle_connection_error(0, error.HTTP2ErrorCodes.NO_ERROR , client_socket, reason="Shutting down server.")
+        error.handle_connection_error(0, error.HTTP2ErrorCodes.NO_ERROR , secure_socket, reason="Shutting down server.")
 
 if __name__ == "__main__":
     gui_thread = threading.Thread(target=start_gui, daemon=True)
