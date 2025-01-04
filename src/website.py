@@ -86,21 +86,24 @@ class SimpleWebsite:
         else:
             return self.create_response(405, "Method Not Allowed: Use GET for /html.")
         
+    
+
     def upload_data(self, method, body, content_type):
         """
-        Handles the /upload route for uploading large data payloads or sending a hardcoded file.
+        Handles the /upload route for uploading large data payloads.
         
         Parameters:
-        - method (str): The HTTP method (e.g., POST or GET).
-        - body (bytes): The request body containing the data (if any).
+        - method (str): The HTTP method (e.g., POST).
+        - body (bytes): The request body containing the data.
         - content_type (str): The content type of the request.
-
         Returns:
         - A tuple of (response_headers, response_data).
         """
         if method == "POST":
             if body:
                 data_size = len(body)
+                print(f"Received {data_size} bytes of data")
+                print(body.decode("utf-8"))
                 return self.create_response(
                     200, 
                     f"Data received successfully. Size: {data_size} bytes.",
@@ -112,33 +115,10 @@ class SimpleWebsite:
                     "No data received. Please send a non-empty body.",
                     content_type="text/plain"
                 )
-        elif method == "GET":
-            try:
-                file_path = "Large file.txt"
-                with open(file_path, "rb") as file:
-                    file_data = file.read()
-                file_size = len(file_data)
-                return self.create_response(
-                    200,
-                    file_data.decode("utf-8"),
-                    content_type="text/plain"
-                )
-            except FileNotFoundError:
-                return self.create_response(
-                    404,
-                    f"File '{file_path}' not found.",
-                    content_type="text/plain"
-                )
-            except Exception as e:
-                return self.create_response(
-                    500,
-                    f"Error reading file: {str(e)}",
-                    content_type="text/plain"
-                )
         else:
             return self.create_response(
                 405, 
-                "Method Not Allowed: Use POST or GET for /upload.",
+                "Method Not Allowed: Use POST for /upload.",
                 content_type="text/plain"
             )
 
