@@ -1,7 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 import logging
+import threading
 from logger_setup import get_logger
+from connection_handler import start_server
 
 class ServerApp:
     def __init__(self, root):
@@ -34,7 +36,7 @@ class ServerApp:
         frame.grid(row=0, column=0, sticky="nsew")
 
     def create_control_page(self):
-        frame = ControlPage(self.container, self.show_page)
+        frame = ControlPage(self.container, self.show_page, self.start_server)
         self.pages["Control"] = frame
         frame.grid(row=0, column=0, sticky="nsew")
 
@@ -47,9 +49,10 @@ class ServerApp:
         page = self.pages[page_name]
         page.tkraise()
 
-    def log(self, string):
-        self.logger.info(string)
-
+    def start_server(self):
+        server_thread = threading.Thread(target=start_server, daemon=True)
+        server_thread.start()
+        self.logger.info("Server started.")
 
 class LoginPage(tk.Frame):
     def __init__(self, parent, show_page):
@@ -78,16 +81,19 @@ class LoginPage(tk.Frame):
         else:
             self.error_label.config(text="Invalid username or password")
 
-
 class ControlPage(tk.Frame):
-    def __init__(self, parent, show_page):
+    def __init__(self, parent, show_page, start_server_callback):
         super().__init__(parent)
         self.show_page = show_page
+        self.start_server_callback = start_server_callback
 
         tk.Label(self, text="Server Control Panel", font=("Arial", 16)).pack(pady=10)
 
         tk.Button(self, text="View Logs", command=lambda: self.show_page("Log")).pack(pady=10)
+        tk.Button(self, text="Start Server", command=self.start_server).pack(pady=10)  # Add Start Server button
 
+    def start_server(self):
+        self.start_server_callback()
 
 class LogPage(tk.Frame):
     def __init__(self, parent, show_page):
@@ -101,7 +107,6 @@ class LogPage(tk.Frame):
 
         tk.Button(self, text="Back", command=lambda: self.show_page("Control")).pack(pady=10)
 
-
 class TextHandler(logging.Handler):
     def __init__(self, text_widget):
         super().__init__()
@@ -114,8 +119,10 @@ class TextHandler(logging.Handler):
         self.text_widget.configure(state="disabled")
         self.text_widget.see("end")
 
-
 def start_gui():
     root = tk.Tk()
     app = ServerApp(root)
     root.mainloop()
+
+if __name__ == "__main__":
+    start_gui()
