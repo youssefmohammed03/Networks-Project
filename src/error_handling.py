@@ -28,7 +28,6 @@ class HTTP2Error(Exception):
         self.message = message
         super().__init__(f"HTTP/2 Error: {error_code} - {message}")
 
-# what cant i make this function take socket argument
 def handle_connection_error(stream_id, error_code, socket, reason=""):
     logger.info(f"[CONNECTION ERROR] Stream ID: {stream_id}, Error Code: {error_code}, Reason: {reason}")
     goaway_frame = construct_goaway_frame(stream_id, error_code, reason)

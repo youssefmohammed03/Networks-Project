@@ -158,10 +158,11 @@ def encode(dynamic_table, name, value, indexing = True):
             encoded_byte = encode_integer(i, 7)
             return bytes([encoded_byte[0] | 0x80]) + encoded_byte[1:]
 
-    for i, (n, v) in enumerate(dynamic_table.get_table()):
-        if n == name and v == value:
-            encoded_byte = encode_integer(i + 62, 7)
-            return bytes([encoded_byte[0] | 0x80]) + encoded_byte[1:]
+    # Remove this (uncomment)
+    #for i, (n, v) in enumerate(dynamic_table.get_table()):
+    #    if n == name and v == value:
+    #        encoded_byte = encode_integer(i + 62, 7)
+    #        return bytes([encoded_byte[0] | 0x80]) + encoded_byte[1:]
 
     for i, (n, v) in enumerate(static_table):
         if n == name:
@@ -174,20 +175,21 @@ def encode(dynamic_table, name, value, indexing = True):
             else:
                 encoded_name_index = encode_integer(i, 4)
                 encoded_value = encode_string(value)
+                dynamic_table.add_entry(name, value)         # Remove this line
                 return encoded_name_index + encoded_value
-
-    for i, (n, v) in enumerate(dynamic_table.get_table()):
-        if n == name:
-            if indexing:
-                encoded_byte = encode_integer(i + 62, 6)
-                encoded_name_index = bytes([encoded_byte[0] | 0x40]) + encoded_byte[1:]
-                encoded_value = encode_string(value)
-                dynamic_table.add_entry(name, value)
-                return encoded_name_index + encoded_value
-            else:
-                encoded_name_index = encode_integer(i + 62, 4)
-                encoded_value = encode_string(value)
-                return encoded_name_index + encoded_value
+    # Remove this (uncomment)
+    #for i, (n, v) in enumerate(dynamic_table.get_table()):
+    #    if n == name:
+    #        if indexing:
+    #            encoded_byte = encode_integer(i + 62, 6)
+    #            encoded_name_index = bytes([encoded_byte[0] | 0x40]) + encoded_byte[1:]
+    #            encoded_value = encode_string(value)
+    #            dynamic_table.add_entry(name, value)
+    #            return encoded_name_index + encoded_value
+    #        else:
+    #            encoded_name_index = encode_integer(i + 62, 4)
+    #           encoded_value = encode_string(value)
+    #            return encoded_name_index + encoded_value
 
     encoded_name = encode_string(name)
     encoded_value = encode_string(value)
