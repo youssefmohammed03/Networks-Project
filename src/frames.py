@@ -8,7 +8,7 @@ class Frame:
     payload = b""
     server_initiated = False
     whole_frame = b""
-    def __init__(self, frame, server_initiated=False, rst_stream=False, goaway=False, data=None, header=None, end_stream=False, stream_id_resp=0, last_stream_id=0, error_code=0, reason=""):
+    def __init__(self, frame, server_initiated=False, rst_stream=False, goaway=False, data=None, header=None, end_stream=False, stream_id_resp=0, last_stream_id=0, error_code=0, reason="", ping_ack=False):
         if server_initiated:
             if rst_stream:
                 self.frame_length = 8  
@@ -46,6 +46,14 @@ class Frame:
                 self.payload = header
                 self.server_initiated = server_initiated
                 self.whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self.payload
+            elif ping_ack:
+                self.frame_length = 0  
+                self.frame_type = 0x6  
+                self.frame_flags = 0x1  
+                self.stream_id = 0  
+                self.payload = b""
+                self.server_initiated = server_initiated
+                self.whole_frame = struct.pack("!I", self.frame_length)[1:] + struct.pack("!B", self.frame_type) + struct.pack("!B", self.frame_flags) + struct.pack("!I", self.stream_id) + self
             else:
                 self.server_initiated = server_initiated
                 pass

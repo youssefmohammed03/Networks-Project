@@ -34,8 +34,10 @@ def frame_processor(client_socket, client_address):
                 settings_frame_handler(client_socket, client_address, frame)
             elif frame.get_frame_type() == 0x6:  # Ping frame
                 logger.info("Ping frame received")
-                ping_ack_frame = frames.Frame(0, server_initiated=False, frame_type=0x6, frame_flags=0x1, stream_id=0, payload=frame.get_payload())
-                client_socket.sendall(ping_ack_frame.get_whole_frame())
+                if frame.get_frame_flags() & 0x1 == 0:  # If ACK flag is not set
+                    ping_response = frames.Frame(frame=0, server_initiated=True, ping_ack=True)
+                    client_socket.sendall(ping_response.get_whole_frame())
+                    logger.info("PING ACK frame sent")
             elif frame.get_frame_type() == 0x7:  # GOAWAY frame
                 logger.info("Goaway frame received")
                 last_stream_id, error_code = struct.unpack("!I I", frame.get_payload()[:8])
@@ -55,4 +57,5 @@ def frame_processor(client_socket, client_address):
                 logger.info(f"Unknown frame type {frame.get_frame_type()} received. Ignoring.")
 
     except Exception as e:
+        logger.info(f"Error from frame processor: {e}")
         return
