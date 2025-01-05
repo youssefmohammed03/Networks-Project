@@ -200,6 +200,23 @@ def start_server(host="192.168.1.4", port=443):
 
 
 
+def start_gui():
+    root = tk.Tk()
+    
+    # Set the initial size of the window (width x height)
+    initial_width = 800
+    initial_height = 600
+    root.geometry(f"{initial_width}x{initial_height}")
+    
+    # Allow the window to be resizable
+    root.resizable(True, True)
+    
+    # Create the application
+    app = ServerApp(root)
+    
+    # Start the main loop
+    root.mainloop()
+
 class ServerApp:
     def __init__(self, root):
         self.root = root
@@ -207,7 +224,11 @@ class ServerApp:
 
         # Create a container for pages
         self.container = tk.Frame(self.root)
-        self.container.pack(fill="both", expand=True)
+        self.container.pack(fill="both", expand=True)  # Make the container expand
+
+        # Configure the container grid to expand
+        self.container.grid_rowconfigure(0, weight=1)  # Make row 0 expand
+        self.container.grid_columnconfigure(0, weight=1)  # Make column 0 expand
 
         # Dictionary to hold pages
         self.pages = {}
@@ -228,17 +249,17 @@ class ServerApp:
     def create_login_page(self):
         frame = LoginPage(self.container, self.show_page)
         self.pages["Login"] = frame
-        frame.grid(row=0, column=0, sticky="nsew")
+        frame.grid(row=0, column=0, sticky="nsew")  # Make the frame expand and fill space
 
     def create_control_page(self):
         frame = ControlPage(self.container, self.show_page, self.start_server)
         self.pages["Control"] = frame
-        frame.grid(row=0, column=0, sticky="nsew")
+        frame.grid(row=0, column=0, sticky="nsew")  # Make the frame expand and fill space
 
     def create_log_page(self):
         frame = LogPage(self.container, self.show_page)
         self.pages["Log"] = frame
-        frame.grid(row=0, column=0, sticky="nsew")
+        frame.grid(row=0, column=0, sticky="nsew")  # Make the frame expand and fill space
 
     def show_page(self, page_name):
         page = self.pages[page_name]
@@ -254,18 +275,26 @@ class LoginPage(tk.Frame):
         super().__init__(parent)
         self.show_page = show_page
 
-        tk.Label(self, text="Username:").pack(pady=5)
-        self.username_entry = tk.Entry(self)
+        # Configure the frame to expand
+        self.grid_rowconfigure(0, weight=1)  # Make row 0 expand
+        self.grid_columnconfigure(0, weight=1)  # Make column 0 expand
+
+        # Create a sub-frame to center the content
+        center_frame = tk.Frame(self)
+        center_frame.grid(row=0, column=0)
+
+        tk.Label(center_frame, text="Username:").pack(pady=5)
+        self.username_entry = tk.Entry(center_frame)
         self.username_entry.pack(pady=5)
 
-        tk.Label(self, text="Password:").pack(pady=5)
-        self.password_entry = tk.Entry(self, show="*")
+        tk.Label(center_frame, text="Password:").pack(pady=5)
+        self.password_entry = tk.Entry(center_frame, show="*")
         self.password_entry.pack(pady=5)
 
-        self.error_label = tk.Label(self, text="", fg="red")
+        self.error_label = tk.Label(center_frame, text="", fg="red")
         self.error_label.pack()
 
-        tk.Button(self, text="Login", command=self.validate_login).pack(pady=10)
+        tk.Button(center_frame, text="Login", command=self.validate_login).pack(pady=10)
 
     def validate_login(self):
         username = self.username_entry.get()
@@ -282,10 +311,18 @@ class ControlPage(tk.Frame):
         self.show_page = show_page
         self.start_server_callback = start_server_callback
 
-        tk.Label(self, text="Server Control Panel", font=("Arial", 16)).pack(pady=10)
+        # Configure the frame to expand
+        self.grid_rowconfigure(0, weight=1)  # Make row 0 expand
+        self.grid_columnconfigure(0, weight=1)  # Make column 0 expand
 
-        tk.Button(self, text="View Logs", command=lambda: self.show_page("Log")).pack(pady=10)
-        tk.Button(self, text="Start Server", command=self.start_server).pack(pady=10)  # Add Start Server button
+        # Create a sub-frame to center the content
+        center_frame = tk.Frame(self)
+        center_frame.grid(row=0, column=0)
+
+        tk.Label(center_frame, text="Server Control Panel", font=("Arial", 16)).pack(pady=10)
+
+        tk.Button(center_frame, text="View Logs", command=lambda: self.show_page("Log")).pack(pady=10)
+        tk.Button(center_frame, text="Start Server", command=self.start_server).pack(pady=10)
 
     def start_server(self):
         self.start_server_callback()
@@ -295,12 +332,20 @@ class LogPage(tk.Frame):
         super().__init__(parent)
         self.show_page = show_page
 
-        tk.Label(self, text="Server Logs", font=("Arial", 16)).pack(pady=10)
+        # Configure the frame to expand
+        self.grid_rowconfigure(0, weight=1)  # Make row 0 expand
+        self.grid_columnconfigure(0, weight=1)  # Make column 0 expand
 
-        self.log_text = scrolledtext.ScrolledText(self, state="disabled", height=15)
-        self.log_text.pack(fill="both", expand=True, pady=10, padx=10)
+        # Create a sub-frame to center the content
+        center_frame = tk.Frame(self)
+        center_frame.grid(row=0, column=0, sticky="nsew")
 
-        tk.Button(self, text="Back", command=lambda: self.show_page("Control")).pack(pady=10)
+        tk.Label(center_frame, text="Server Logs", font=("Arial", 16)).pack(pady=10)
+
+        self.log_text = scrolledtext.ScrolledText(center_frame, state="disabled", height=15)
+        self.log_text.pack(fill="both", expand=True, pady=10, padx=10)  # Make it expand and fill space
+
+        tk.Button(center_frame, text="Back", command=lambda: self.show_page("Control")).pack(pady=10)
 
 class TextHandler(logging.Handler):
     def __init__(self, text_widget):
@@ -313,11 +358,6 @@ class TextHandler(logging.Handler):
         self.text_widget.insert("end", msg + "\n")
         self.text_widget.configure(state="disabled")
         self.text_widget.see("end")
-
-def start_gui():
-    root = tk.Tk()
-    app = ServerApp(root)
-    root.mainloop()
 
 if __name__ == "__main__":
     start_gui()

@@ -35,7 +35,7 @@ def frame_processor(client_socket, client_address):
             elif frame.get_frame_type() == 0x6:  # Ping frame
                 logger.info("Ping frame received")
                 if frame.get_frame_flags() & 0x1 == 0:  # If ACK flag is not set
-                    ping_response = frames.Frame(frame=0, server_initiated=True, ping_ack=True)
+                    ping_response = frames.Frame(frame=0, server_initiated=True, ping_ack=True, ping_payload = frame.get_payload())
                     client_socket.sendall(ping_response.get_whole_frame())
                     logger.info("PING ACK frame sent")
             elif frame.get_frame_type() == 0x7:  # GOAWAY frame
@@ -51,7 +51,7 @@ def frame_processor(client_socket, client_address):
                 streamManager.close_stream(last_stream_id)
                 client_socket.close()
             elif frame.get_frame_type() == 0x8:  # WINDOW_UPDATE frame
-                #will be handled in stream_manager
+                #handled in stream_manager
                 pass
             else:
                 logger.info(f"Unknown frame type {frame.get_frame_type()} received. Ignoring.")

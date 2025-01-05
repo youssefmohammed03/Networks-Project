@@ -6,6 +6,7 @@ class SimpleWebsite:
             "/json": self.json_response,
             "/html": self.html_response,
             "/upload": self.upload_data,
+            "/upload-page": self.upload_page,
             "/styles.css": self.serve_css,
         }
 
@@ -73,20 +74,42 @@ class SimpleWebsite:
     </head>
     <body>
         <h1>Welcome to the HTML page</h1>
-        <p>This page has link:</p>
+        <p>This page has links:</p>
         <ul>
             <li><a href="/json">JSON Example</a></li>
+            <li><a href="/upload-page">Upload Page</a></li>
         </ul>
 
-        </body>
+    </body>
 </html>
-
             """
             return self.create_response(200, html_content, content_type="text/html")
         else:
             return self.create_response(405, "Method Not Allowed: Use GET for /html.")
-        
-    
+
+    def upload_page(self, method, body, content_type):
+        """
+        Serves an HTML page with a file upload form that posts to the /upload endpoint.
+        """
+        if method == "GET":
+            html_content = """
+            <html>
+    <head>
+        <title>Upload Page</title>
+    </head>
+    <body>
+        <h1>Upload a File</h1>
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+            <label for="file">Choose a file:</label>
+            <input type="file" name="file" id="file">
+            <button type="submit">Upload</button>
+        </form>
+    </body>
+</html>
+            """
+            return self.create_response(200, html_content, content_type="text/html")
+        else:
+            return self.create_response(405, "Method Not Allowed: Use GET for /upload-page.")
 
     def upload_data(self, method, body, content_type):
         """
@@ -102,8 +125,6 @@ class SimpleWebsite:
         if method == "POST":
             if body:
                 data_size = len(body)
-                print(f"Received {data_size} bytes of data")
-                print(body.decode("utf-8"))
                 return self.create_response(
                     200, 
                     f"Data received successfully. Size: {data_size} bytes.",
