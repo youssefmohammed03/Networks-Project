@@ -33,6 +33,9 @@ def get_header_block_fragment(frame):
 def parse_headers_frame(frame, client_address, stream_id, socket):
     header_block_fragment = get_header_block_fragment(frame)
     headers = hpack.decode(client_dynamic_table[client_address], header_block_fragment)
+    logger.info(f"--------------------------------------------Receiving Header--------------------------------------------")
+    logger.info(f"{client_dynamic_table[client_address].get_table()}")
+    logger.info(f"------------------------------------------------------------------------------------------------------")
     stream = streams[frame.get_stream_id()]
     headers = dict(headers)
     stream.set_request_header(headers)
@@ -50,7 +53,10 @@ def parse_data_frame(frame, client_address, stream_id, socket):
 def construct_response(headers, data, client_address, stream_id_resp, socket):
     header_block_fragment = b''
     for header in headers:
-        header_block_fragment += hpack.encode(client_dynamic_table[client_address], header[0], header[1], indexing=False) # Remove indexing
+        header_block_fragment += hpack.encode(client_dynamic_table[client_address], header[0], header[1])
+    logger.info(f"--------------------------------------------Sending Header--------------------------------------------")
+    logger.info(f"{client_dynamic_table[client_address].get_table()}")
+    logger.info(f"------------------------------------------------------------------------------------------------------")
     if data:
         header_frame_response = Frame(frame=None, server_initiated=True, header=header_block_fragment, end_stream=False, stream_id_resp=stream_id_resp)
     else:
